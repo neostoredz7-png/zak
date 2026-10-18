@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#047857" />
+      <stop offset="100%" stop-color="#064e3b" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)" />
+  <!-- Dynamic athletic runner silhouette -->
+  <circle cx="270" cy="130" r="38" fill="#ffffff" />
+  <path d="M225 210 L275 190 L330 220 L360 210 L370 230 L320 250 L275 220 L240 280 L290 330 L340 375 L320 405 L265 350 L220 300 L180 340 L155 320 L205 260 Z" fill="#ffffff" />
+  <path d="M245 285 L180 230 L200 205 L245 240 Z" fill="#10b981" />
+  <path d="M290 330 L350 340 L370 320 L320 310 Z" fill="#34d399" />
+  <!-- Track speed arc -->
+  <path d="M80 430 Q256 460 432 410" stroke="#f59e0b" stroke-width="14" stroke-linecap="round" fill="none" />
+  <!-- Text EPS DZ -->
+  <text x="256" y="475" text-anchor="middle" font-family="Arial, sans-serif" font-size="42" font-weight="900" fill="#ffffff" letter-spacing="4">EPS DZ</text>
+</svg>

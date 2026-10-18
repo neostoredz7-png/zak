@@ -1,0 +1,541 @@
+import {
+  Profile,
+  SchoolClass,
+  Student,
+  Assessment,
+  Mark,
+  AttendanceSession,
+  AttendanceRecord,
+  TeachingUnit,
+  Lesson,
+  PhysicalTest,
+  PhysicalTestResult,
+  SportsEquipment,
+  StudentInjury,
+  LegalRegulation,
+} from '../types';
+
+export const initialProfile: Profile = {
+  id: 'teacher-zakaria-01',
+  email: 'neostoredz7@gmail.com',
+  full_name: 'سعيد زكريا',
+  school_name: 'ثانوية أول نوفمبر 1954 - جديوية',
+  wilaya: 'غليزان',
+  municipality: 'جديوية',
+  academic_year: '2026 / 2027',
+  specialty: 'التربية البدنية والرياضية',
+  phone: '0550123456',
+};
+
+// All high school classes, some assigned to this teacher, some not!
+export const initialClasses: SchoolClass[] = [
+  {
+    id: 'cls-1as-1',
+    user_id: 'teacher-zakaria-01',
+    code: '1AS-ST-1',
+    name: '1 ج م ع ت 1',
+    grade_level: '1AS',
+    track: 'جذع مشترك علوم وتكنولوجيا',
+    group_name: 'فوج 01',
+    academic_year: '2026 / 2027',
+    student_count: 35,
+    is_assigned: true, // ASSIGNED TO TEACHER
+  },
+  {
+    id: 'cls-1as-2',
+    user_id: 'teacher-zakaria-01',
+    code: '1AS-L-1',
+    name: '1 ج م آداب 1',
+    grade_level: '1AS',
+    track: 'جذع مشترك آداب',
+    group_name: 'فوج 01',
+    academic_year: '2026 / 2027',
+    student_count: 34,
+    is_assigned: false, // NOT ASSIGNED (exists in school only)
+  },
+  {
+    id: 'cls-2as-1',
+    user_id: 'teacher-zakaria-01',
+    code: '2AS-SE-1',
+    name: '2 ع ت 1',
+    grade_level: '2AS',
+    track: 'علوم تجريبية',
+    group_name: 'فوج 02',
+    academic_year: '2026 / 2027',
+    student_count: 32,
+    is_assigned: true, // ASSIGNED TO TEACHER
+  },
+  {
+    id: 'cls-2as-2',
+    user_id: 'teacher-zakaria-01',
+    code: '2AS-TM-1',
+    name: '2 ت ر 1',
+    grade_level: '2AS',
+    track: 'تقني رياضي',
+    group_name: 'فوج 01',
+    academic_year: '2026 / 2027',
+    student_count: 30,
+    is_assigned: false, // NOT ASSIGNED
+  },
+  {
+    id: 'cls-3as-1',
+    user_id: 'teacher-zakaria-01',
+    code: '3AS-SE-1',
+    name: '3 ع ت 3',
+    grade_level: '3AS',
+    track: 'علوم تجريبية',
+    group_name: 'فوج 03',
+    academic_year: '2026 / 2027',
+    student_count: 38,
+    is_assigned: true, // ASSIGNED TO TEACHER (featured in reference poster!)
+  },
+  {
+    id: 'cls-3as-2',
+    user_id: 'teacher-zakaria-01',
+    code: '3AS-M-1',
+    name: '3 ر 1',
+    grade_level: '3AS',
+    track: 'رياضيات',
+    group_name: 'فوج 01',
+    academic_year: '2026 / 2027',
+    student_count: 28,
+    is_assigned: false, // NOT ASSIGNED
+  },
+  {
+    id: 'cls-3as-3',
+    user_id: 'teacher-zakaria-01',
+    code: '3AS-LP-1',
+    name: '3 آ ف 1',
+    grade_level: '3AS',
+    track: 'آداب وفلسفة',
+    group_name: 'فوج 02',
+    academic_year: '2026 / 2027',
+    student_count: 36,
+    is_assigned: true, // ASSIGNED TO TEACHER
+  },
+];
+
+// Students in Class 3AS-SE-1 (3 ع ت 3) matching the reference poster
+export const initialStudents: Student[] = [
+  {
+    id: 'std-01',
+    class_id: 'cls-3as-1',
+    user_id: 'teacher-zakaria-01',
+    student_number: '01',
+    first_name: 'محمد',
+    last_name: 'بن خفير',
+    gender: 'M',
+    birth_date: '2008-04-12',
+    is_exempt: false,
+    notes: 'متميز في سباق السرعة والتحمل',
+  },
+  {
+    id: 'std-02',
+    class_id: 'cls-3as-1',
+    user_id: 'teacher-zakaria-01',
+    student_number: '02',
+    first_name: 'أحمد',
+    last_name: 'طالب',
+    gender: 'M',
+    birth_date: '2008-09-21',
+    is_exempt: false,
+    notes: 'يحتاج تحسين وضعية الانطلاق',
+  },
+  {
+    id: 'std-03',
+    class_id: 'cls-3as-1',
+    user_id: 'teacher-zakaria-01',
+    student_number: '03',
+    first_name: 'سارة',
+    last_name: 'عيساوي',
+    gender: 'F',
+    birth_date: '2008-01-15',
+    is_exempt: false,
+    notes: 'مشاركة ممتازة في كرة السلة',
+  },
+  {
+    id: 'std-04',
+    class_id: 'cls-3as-1',
+    user_id: 'teacher-zakaria-01',
+    student_number: '04',
+    first_name: 'ياسين',
+    last_name: 'سعيدي',
+    gender: 'M',
+    birth_date: '2008-06-30',
+    is_exempt: false,
+    notes: 'انضباط عالي وروح رياضية',
+  },
+  {
+    id: 'std-05',
+    class_id: 'cls-3as-1',
+    user_id: 'teacher-zakaria-01',
+    student_number: '05',
+    first_name: 'نورهان',
+    last_name: 'قاسمي',
+    gender: 'F',
+    birth_date: '2008-11-04',
+    is_exempt: true,
+    medical_reason: 'التواء في الكاحل (شهادة طبية 15 يوماً)',
+    notes: 'معفاة مؤقتاً',
+  },
+  {
+    id: 'std-06',
+    class_id: 'cls-3as-1',
+    user_id: 'teacher-zakaria-01',
+    student_number: '06',
+    first_name: 'ريان',
+    last_name: 'بوعلام',
+    gender: 'M',
+    birth_date: '2008-03-18',
+    is_exempt: false,
+    notes: 'أداء جيد في دفع الجلة',
+  },
+  {
+    id: 'std-07',
+    class_id: 'cls-3as-1',
+    user_id: 'teacher-zakaria-01',
+    student_number: '07',
+    first_name: 'سمير',
+    last_name: 'لعقاب',
+    gender: 'M',
+    birth_date: '2008-08-25',
+    is_exempt: false,
+    notes: 'حضور منتظم وتطور ملحوظ',
+  },
+  {
+    id: 'std-08',
+    class_id: 'cls-3as-1',
+    user_id: 'teacher-zakaria-01',
+    student_number: '08',
+    first_name: 'إيمان',
+    last_name: 'دحماني',
+    gender: 'F',
+    birth_date: '2008-05-19',
+    is_exempt: false,
+    notes: 'لياقة بدنية جيدة',
+  },
+  // Sample students in 1AS 1
+  {
+    id: 'std-101',
+    class_id: 'cls-1as-1',
+    user_id: 'teacher-zakaria-01',
+    student_number: '01',
+    first_name: 'وليد',
+    last_name: 'مباركي',
+    gender: 'M',
+    birth_date: '2010-02-14',
+    is_exempt: false,
+  },
+  {
+    id: 'std-102',
+    class_id: 'cls-1as-1',
+    user_id: 'teacher-zakaria-01',
+    student_number: '02',
+    first_name: 'خديجة',
+    last_name: 'بلقاسم',
+    gender: 'F',
+    birth_date: '2010-07-22',
+    is_exempt: false,
+  },
+  // Sample students in 2AS 1
+  {
+    id: 'std-201',
+    class_id: 'cls-2as-1',
+    user_id: 'teacher-zakaria-01',
+    student_number: '01',
+    first_name: 'أسامة',
+    last_name: 'شرقي',
+    gender: 'M',
+    birth_date: '2009-10-11',
+    is_exempt: false,
+  },
+  {
+    id: 'std-202',
+    class_id: 'cls-2as-1',
+    user_id: 'teacher-zakaria-01',
+    student_number: '02',
+    first_name: 'مروة',
+    last_name: 'حجاج',
+    gender: 'F',
+    birth_date: '2009-03-05',
+    is_exempt: false,
+  },
+];
+
+// Initial assessments for Trimester 1
+export const initialAssessments: Assessment[] = [
+  {
+    id: 'ass-t1-diag',
+    class_id: 'cls-3as-1',
+    user_id: 'teacher-zakaria-01',
+    trimester: 1,
+    title: 'التقويم المستمر (الانضباط والسلوك والزي الرياضي)',
+    assessment_type: 'continuous',
+    activity_name: 'أنشطة عامة',
+    max_score: 20,
+    weight: 1,
+    assessment_date: '2026-10-05',
+  },
+  {
+    id: 'ass-t1-form',
+    class_id: 'cls-3as-1',
+    user_id: 'teacher-zakaria-01',
+    trimester: 1,
+    title: 'التقويم التكويني (العدو السريع 60م)',
+    assessment_type: 'formative',
+    activity_name: 'ألعاب القوى',
+    max_score: 20,
+    weight: 1,
+    assessment_date: '2026-10-20',
+  },
+  {
+    id: 'ass-t1-summ',
+    class_id: 'cls-3as-1',
+    user_id: 'teacher-zakaria-01',
+    trimester: 1,
+    title: 'التقويم الختامي (مهارات كرة السلة والتسديد)',
+    assessment_type: 'summative',
+    activity_name: 'كرة السلة',
+    max_score: 20,
+    weight: 2,
+    assessment_date: '2026-11-25',
+  },
+];
+
+// Marks exactly corresponding to the reference poster for 3AS 3
+export const initialMarks: Mark[] = [
+  // محمد بن خفير
+  { id: 'm-1', assessment_id: 'ass-t1-diag', student_id: 'std-01', user_id: 'teacher-zakaria-01', score: 12.0 },
+  { id: 'm-2', assessment_id: 'ass-t1-form', student_id: 'std-01', user_id: 'teacher-zakaria-01', score: 14.0 },
+  { id: 'm-3', assessment_id: 'ass-t1-summ', student_id: 'std-01', user_id: 'teacher-zakaria-01', score: 15.0 },
+  // أحمد طالب
+  { id: 'm-4', assessment_id: 'ass-t1-diag', student_id: 'std-02', user_id: 'teacher-zakaria-01', score: 10.0 },
+  { id: 'm-5', assessment_id: 'ass-t1-form', student_id: 'std-02', user_id: 'teacher-zakaria-01', score: 12.0 },
+  { id: 'm-6', assessment_id: 'ass-t1-summ', student_id: 'std-02', user_id: 'teacher-zakaria-01', score: 13.0 },
+  // سارة عيساوي
+  { id: 'm-7', assessment_id: 'ass-t1-diag', student_id: 'std-03', user_id: 'teacher-zakaria-01', score: 14.0 },
+  { id: 'm-8', assessment_id: 'ass-t1-form', student_id: 'std-03', user_id: 'teacher-zakaria-01', score: 16.0 },
+  { id: 'm-9', assessment_id: 'ass-t1-summ', student_id: 'std-03', user_id: 'teacher-zakaria-01', score: 17.0 },
+  // ياسين سعيدي
+  { id: 'm-10', assessment_id: 'ass-t1-diag', student_id: 'std-04', user_id: 'teacher-zakaria-01', score: 11.0 },
+  { id: 'm-11', assessment_id: 'ass-t1-form', student_id: 'std-04', user_id: 'teacher-zakaria-01', score: 13.0 },
+  { id: 'm-12', assessment_id: 'ass-t1-summ', student_id: 'std-04', user_id: 'teacher-zakaria-01', score: 14.0 },
+  // نورهان قاسمي
+  { id: 'm-13', assessment_id: 'ass-t1-diag', student_id: 'std-05', user_id: 'teacher-zakaria-01', score: 15.0 },
+  { id: 'm-14', assessment_id: 'ass-t1-form', student_id: 'std-05', user_id: 'teacher-zakaria-01', score: 17.0 },
+  { id: 'm-15', assessment_id: 'ass-t1-summ', student_id: 'std-05', user_id: 'teacher-zakaria-01', score: 18.0 },
+  // ريان بوعلام
+  { id: 'm-16', assessment_id: 'ass-t1-diag', student_id: 'std-06', user_id: 'teacher-zakaria-01', score: 12.0 },
+  { id: 'm-17', assessment_id: 'ass-t1-form', student_id: 'std-06', user_id: 'teacher-zakaria-01', score: 14.0 },
+  { id: 'm-18', assessment_id: 'ass-t1-summ', student_id: 'std-06', user_id: 'teacher-zakaria-01', score: 15.0 },
+  // سمير لعقاب
+  { id: 'm-19', assessment_id: 'ass-t1-diag', student_id: 'std-07', user_id: 'teacher-zakaria-01', score: 13.0 },
+  { id: 'm-20', assessment_id: 'ass-t1-form', student_id: 'std-07', user_id: 'teacher-zakaria-01', score: 14.0 },
+  { id: 'm-21', assessment_id: 'ass-t1-summ', student_id: 'std-07', user_id: 'teacher-zakaria-01', score: 15.0 },
+  // إيمان دحماني
+  { id: 'm-22', assessment_id: 'ass-t1-diag', student_id: 'std-08', user_id: 'teacher-zakaria-01', score: 14.0 },
+  { id: 'm-23', assessment_id: 'ass-t1-form', student_id: 'std-08', user_id: 'teacher-zakaria-01', score: 15.0 },
+  { id: 'm-24', assessment_id: 'ass-t1-summ', student_id: 'std-08', user_id: 'teacher-zakaria-01', score: 16.0 },
+];
+
+// Attendance session & records
+export const initialAttendanceSessions: AttendanceSession[] = [
+  {
+    id: 'att-sess-01',
+    class_id: 'cls-3as-1',
+    user_id: 'teacher-zakaria-01',
+    session_date: '2026-09-15',
+    session_number: 4,
+    activity: 'ألعاب القوى (سباق السرعة والتحمل)',
+    sports_field: 'مضمار ألعاب القوى بالثانوية',
+  },
+];
+
+export const initialAttendanceRecords: AttendanceRecord[] = [
+  { id: 'rec-1', session_id: 'att-sess-01', student_id: 'std-01', user_id: 'teacher-zakaria-01', status: 'present' },
+  { id: 'rec-2', session_id: 'att-sess-01', student_id: 'std-02', user_id: 'teacher-zakaria-01', status: 'absent', notes: 'غياب غير مبرر' },
+  { id: 'rec-3', session_id: 'att-sess-01', student_id: 'std-03', user_id: 'teacher-zakaria-01', status: 'present' },
+  { id: 'rec-4', session_id: 'att-sess-01', student_id: 'std-04', user_id: 'teacher-zakaria-01', status: 'late', notes: 'تأخر 10 دقائق' },
+  { id: 'rec-5', session_id: 'att-sess-01', student_id: 'std-05', user_id: 'teacher-zakaria-01', status: 'exempt', notes: 'إصابة الكاحل معفاة' },
+  { id: 'rec-6', session_id: 'att-sess-01', student_id: 'std-06', user_id: 'teacher-zakaria-01', status: 'present' },
+  { id: 'rec-7', session_id: 'att-sess-01', student_id: 'std-07', user_id: 'teacher-zakaria-01', status: 'excused', notes: 'مريض - مبرر' },
+  { id: 'rec-8', session_id: 'att-sess-01', student_id: 'std-08', user_id: 'teacher-zakaria-01', status: 'present' },
+];
+
+// Pedagogical units
+export const initialTeachingUnits: TeachingUnit[] = [
+  {
+    id: 'unit-1',
+    user_id: 'teacher-zakaria-01',
+    grade_level: '3AS',
+    title: 'الوحدة 1: ألعاب القوى',
+    sport_family: 'ألعاب القوى',
+    sports: ['العدو السريع', 'الوثب الطويل', 'دفع الجلة'],
+    academic_year: '2026 / 2027',
+  },
+  {
+    id: 'unit-2',
+    user_id: 'teacher-zakaria-01',
+    grade_level: '3AS',
+    title: 'الوحدة 2: الألعاب الجماعية',
+    sport_family: 'الرياضات الجماعية',
+    sports: ['كرة اليد', 'كرة السلة', 'الكرة الطائرة'],
+    academic_year: '2026 / 2027',
+  },
+  {
+    id: 'unit-3',
+    user_id: 'teacher-zakaria-01',
+    grade_level: '3AS',
+    title: 'الوحدة 3: الأنشطة البدنية واللياقة',
+    sport_family: 'الجمباز واللياقة',
+    sports: ['التقوية البدنية', 'اللياقة البدنية', 'الأنشطة الترفيهية'],
+    academic_year: '2026 / 2027',
+  },
+];
+
+// Daily Lessons (matching reference image screen 4 "الدفتر اليومي")
+export const initialLessons: Lesson[] = [
+  {
+    id: 'lsn-004',
+    user_id: 'teacher-zakaria-01',
+    class_id: 'cls-3as-1',
+    unit_id: 'unit-1',
+    lesson_number: 4,
+    lesson_date: '2026-09-15',
+    activity: 'ألعاب القوى - العدو السريع',
+    sports_field: 'مضمار ألعاب القوى',
+    target_competence: 'تحسين التكنيك ورفع مستوى السرعة والتحمل الهوائي في الجري المستقيم.',
+    learning_objective: 'تطوير الانطلاق السريع من المنطلق المنخفض والركض المستقيم مع الحفاظ على وتيرة الخطوة.',
+    warmup_desc: 'جري خفيف حول المضمار (5د) ثم حركات الإحماء المفصلي والديناميكي (10د): الوثب، الركبتان إلى الصدر، كعب إلى المقعدة.',
+    warmup_duration: 15,
+    main_desc: 'ورشة 1: وضعية الانطلاق المنخفض بالأوامر (استعد، خذ مكانك، انطلق) 3 تكرارات.\nورشة 2: تسارع تدريجي على مسافة 30 متراً.\nورشة 3: سباق سرعة 60 متراً في أروقة فردية مع قياس التوقيت وملاحظة وضعية الجذع وحركة الذراعين.',
+    main_duration: 60,
+    cooldown_desc: 'مشي بطيء واسترجاع هوائي عميق مع حركات إطالة عضلية ثابتة للعضلات الخلفية للفخذ والساقين.',
+    cooldown_duration: 15,
+    equipment: 'صافرة، ميقاتي يدوي، أقماع، شريط قياس، منصات انطلاق (Starting Blocks)',
+    success_criteria: 'الخروج بزاوية 45 درجة عند الانطلاق، حركة تبادلية متناسقة للذراعين، ثبات وتيرة الخطوة حتى خط النهاية.',
+    teacher_notes: 'أظهرت مجموعة من التلاميذ تحسناً كبيراً في الانطلاق من المنطلق ويحتاج البعض إلى مزيد من تكرار حركة الذراعين.',
+  },
+  {
+    id: 'lsn-005',
+    user_id: 'teacher-zakaria-01',
+    class_id: 'cls-3as-1',
+    unit_id: 'unit-1',
+    lesson_number: 5,
+    lesson_date: '2026-09-22',
+    activity: 'ألعاب القوى - الوثب الطويل',
+    sports_field: 'حفرة الوثب بالثانوية',
+    target_competence: 'التوافق الحركي بين سرعة الاقتراب ودقة الارتقاء على لوحة الارتقاء.',
+    learning_objective: 'ضبط خطوات الاقتراب والارتقاء بقدم واحدة دون لمس خط الخطأ.',
+    warmup_desc: 'إحماء عام + حركات وثب خفيفة وإطالة عضلية.',
+    warmup_duration: 15,
+    main_desc: 'تمارين الاقتراب من مسافات متدرجة (6 خطوات، 10 خطوات)، الارتقاء من لوحة الارتقاء، ومرحلة الطيران والهبوط الثنائي في الرمل.',
+    main_duration: 60,
+    cooldown_desc: 'تمارين ارتخاء وتنظيف الرمل وتسجيل النتائج الأولية.',
+    cooldown_duration: 15,
+    equipment: 'حفرة وثب مهيأة، شريط قياس 10م، مشط رمل، أقماع ملونة.',
+    success_criteria: 'الارتقاء من اللوحة بدقة والهبوط بقدمين متقاربتين مع ميل الجذع للأمام.',
+    teacher_notes: 'حماس كبير لدى التلاميذ ونتائج واعدة في مسافة الوثب.',
+  },
+];
+
+// Physical Fitness Tests
+export const initialPhysicalTests: PhysicalTest[] = [
+  {
+    id: 'test-cooper',
+    user_id: 'teacher-zakaria-01',
+    class_id: 'cls-3as-1',
+    test_name: 'اختبار كوبر المعدل (التحمل الهوائي 12 دقيقة)',
+    measurement_unit: 'متر',
+    description: 'قطع أقصى مسافة ممكنة جرياً خلال 12 دقيقة لتقدير الاستهلاك الأقصى للأكسجين VO2Max.',
+    target_criteria: 'ممتاز: >2800م ذكور | >2400م إناث\nجيد: 2400-2799م ذكور | 2000-2399م إناث\nمتوسط: 2000-2399م ذكور | 1600-1999م إناث',
+  },
+  {
+    id: 'test-sprint-50',
+    user_id: 'teacher-zakaria-01',
+    class_id: 'cls-3as-1',
+    test_name: 'سباق السرعة 50 متراً (الانطلاق من الوقوف)',
+    measurement_unit: 'ثانية',
+    description: 'قياس السرعة القصوى الانتقالية على مسافة مستقيمة 50 متراً بميقاتي يدوي.',
+    target_criteria: 'ممتاز: <6.8 ث ذكور | <7.5 ث إناث\nجيد: 6.9 - 7.4 ث ذكور | 7.6 - 8.2 ث إناث',
+  },
+  {
+    id: 'test-jump',
+    user_id: 'teacher-zakaria-01',
+    class_id: 'cls-3as-1',
+    test_name: 'القفز العريض من الثبات (القوة الانفجارية للأطراف السفلية)',
+    measurement_unit: 'سنتيمتر',
+    description: 'القفز للأمام بكلتا القدمين من خلف خط البداية مع قياس المسافة من آخر نقطة ملامسة.',
+    target_criteria: 'ممتاز: >230 سم ذكور | >190 سم إناث',
+  },
+];
+
+export const initialTestResults: PhysicalTestResult[] = [
+  { id: 'res-1', test_id: 'test-cooper', student_id: 'std-01', user_id: 'teacher-zakaria-01', test_date: '2026-10-08', result_value: 2650, grade: 16.5 },
+  { id: 'res-2', test_id: 'test-cooper', student_id: 'std-02', user_id: 'teacher-zakaria-01', test_date: '2026-10-08', result_value: 2300, grade: 13.5 },
+  { id: 'res-3', test_id: 'test-cooper', student_id: 'std-03', user_id: 'teacher-zakaria-01', test_date: '2026-10-08', result_value: 2150, grade: 16.0 },
+  { id: 'res-4', test_id: 'test-sprint-50', student_id: 'std-01', user_id: 'teacher-zakaria-01', test_date: '2026-10-15', result_value: 6.92, grade: 17.0 },
+  { id: 'res-5', test_id: 'test-sprint-50', student_id: 'std-02', user_id: 'teacher-zakaria-01', test_date: '2026-10-15', result_value: 7.35, grade: 14.0 },
+  { id: 'res-6', test_id: 'test-sprint-50', student_id: 'std-04', user_id: 'teacher-zakaria-01', test_date: '2026-10-15', result_value: 7.10, grade: 15.5 },
+];
+
+// Sports Equipment inventory in Algerian High School
+export const initialEquipment: SportsEquipment[] = [
+  { id: 'eq-1', user_id: 'teacher-zakaria-01', item_name: 'كرات يد قياس 2 و3', category: 'كرات', total_quantity: 25, operational_quantity: 22, damaged_quantity: 3, notes: 'بحالة ممتازة في مخزن الثانوية' },
+  { id: 'eq-2', user_id: 'teacher-zakaria-01', item_name: 'كرات سلة قياس 6 و7', category: 'كرات', total_quantity: 18, operational_quantity: 15, damaged_quantity: 3, notes: 'جاهزة للتدريب والمباريات' },
+  { id: 'eq-3', user_id: 'teacher-zakaria-01', item_name: 'كرات طائرة معتمدة', category: 'كرات', total_quantity: 16, operational_quantity: 14, damaged_quantity: 2 },
+  { id: 'eq-4', user_id: 'teacher-zakaria-01', item_name: 'أقماع تدريب وأطباق مخروطية', category: 'عتاد بيداغوجي', total_quantity: 60, operational_quantity: 58, damaged_quantity: 2 },
+  { id: 'eq-5', user_id: 'teacher-zakaria-01', item_name: 'جلات حديدية (وزن 4 كغ و5 كغ)', category: 'ألعاب قوى', total_quantity: 8, operational_quantity: 8, damaged_quantity: 0 },
+  { id: 'eq-6', user_id: 'teacher-zakaria-01', item_name: 'حبال قفز فردية', category: 'لياقة وتنسيق', total_quantity: 30, operational_quantity: 28, damaged_quantity: 2 },
+  { id: 'eq-7', user_id: 'teacher-zakaria-01', item_name: 'ميقاتي الكتروني يدوي', category: 'أجهزة قياس', total_quantity: 4, operational_quantity: 4, damaged_quantity: 0 },
+  { id: 'eq-8', user_id: 'teacher-zakaria-01', item_name: 'صدريات ملونة للفِرق (أزرق/أخضر)', category: 'عتاد بيداغوجي', total_quantity: 40, operational_quantity: 38, damaged_quantity: 2 },
+];
+
+// Injuries and accidents registry
+export const initialInjuries: StudentInjury[] = [
+  {
+    id: 'inj-1',
+    user_id: 'teacher-zakaria-01',
+    class_id: 'cls-3as-1',
+    student_id: 'std-05',
+    student_name: 'نورهان قاسمي',
+    incident_date: '2026-09-28',
+    incident_time: '10:35',
+    activity: 'كرة السلة',
+    injury_nature: 'التواء بسيط في الكاحل الأيمن عند النزول من الوثب',
+    first_aid_administered: 'وضع كمادات ثلج وتثبيت برباط ضاغط ونقل التلميذة إلى قاعة التمريض بالثانوية',
+    evacuated_to_hospital: false,
+    notes: 'تم إعلام الإدارة وولي أمر التلميذة وتسليم شهادة إعفاء مؤقت.',
+  },
+];
+
+// Algerian Official Educational texts & circulars for PE teachers
+export const initialLegalRegulations: LegalRegulation[] = [
+  {
+    id: 'leg-1',
+    title: 'المنشور الوزاري رقم 88: إجراءات السلامة والأمن والوقاية في حصص التربية البدنية والرياضية',
+    category: 'safety',
+    reference_number: 'منشور رقم 88/و.ت.و/أ.ع',
+    date: '2019-10-15',
+    summary: 'يحدد التزامات الأستاذ والمؤسسة في فحص الملاعب والعتاد قبل الحصة، وحظر ممارسة الأنشطة الخطرة، وتوفير حقيبة الإسعافات الأولية وتأطير التلاميذ أثناء التنقل.',
+    full_content: 'تؤكد وزارة التربية الوطنية على ضرورة اتخاذ كافة التدابير الوقائية لتفادي الحوادث المدرسية أثناء حصص التربية البدنية والرياضية، بما في ذلك معاينة أرضية الميدان والعتاد، وإلزامية الزي الرياضي اللائق، ومراعاة الفروق الفردية والحالات الصحية الخاصة للتلاميذ.',
+  },
+  {
+    id: 'leg-2',
+    title: 'القرار الوزاري الخاص بتنظيم الإعفاءات الطبية من ممارسة التربية البدنية والرياضية',
+    category: 'exemption',
+    reference_number: 'قرار وزاري مشترك رقم 04',
+    date: '2018-09-02',
+    summary: 'شروط منح الإعفاء الكلي أو الجزئي بناءً على شهادة من طبيب الصحة المدرسية (UDS) أو طبيب مختص معتمد، مع تحديد مهام التلميذ المعفى (الملاحظة والتحكيم والتنقيط).',
+    full_content: 'لا يُعفى التلميذ إلا بشهادة طبية رسمية مصادق عليها من مصلحة الصحة المدرسية. يكلف التلميذ المعفى طبياً بمهام مساعدة بيداغوجية كالملاحظة، تسجيل النتائج، أو المساهمة في تنظيم الورشات بما يتناسب مع حالته الصحية دون حرمانه من حضور الحصة.',
+  },
+  {
+    id: 'leg-3',
+    title: 'معاملات مادة التربية البدنية والرياضية في مرحلة التعليم الثانوي والامتحانات الرسمية',
+    category: 'evaluation',
+    reference_number: 'المنهاج الوطني الرسمي للطور الثانوي',
+    date: '2022-06-10',
+    summary: 'معامل المادة في الجذوع المشتركة وشعب البكالوريا هو (01) لجميع الشعب، وتعتبر مادة إجبارية تساهم في المعدل العام والتقويم المستمر والشهادة.',
+    full_content: 'تعتبر التربية البدنية والرياضية مادة تعليمية متكاملة تهدف إلى تنمية الكفاءات البدنية والحركية والاجتماعية. يُحسب المعدل الفصلي للمادة بناءً على التقويم المستمر (المواظبة والانضباط والسلوك 25%)، التقييم التكويني في النشاط الفردي (35%)، والتقييم الختامي في النشاط الجماعي (40%).',
+  },
+];
