@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SchoolClass, Profile } from '../types';
 import { dataRepository } from '../services/dataService';
 import {
@@ -19,6 +19,12 @@ interface StatsReportsViewProps {
 export const StatsReportsView: React.FC<StatsReportsViewProps> = ({ profile, assignedClasses }) => {
   const [selectedClassId, setSelectedClassId] = useState(assignedClasses[0]?.id || '');
   const [trimester, setTrimester] = useState<1 | 2 | 3>(1);
+
+  useEffect(() => {
+    if (!assignedClasses.some((c) => c.id === selectedClassId)) {
+      setSelectedClassId(assignedClasses[0]?.id || '');
+    }
+  }, [assignedClasses, selectedClassId]);
 
   const currentClass = assignedClasses.find((c) => c.id === selectedClassId);
   const marksData = selectedClassId

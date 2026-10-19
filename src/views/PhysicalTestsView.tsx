@@ -24,6 +24,12 @@ export const PhysicalTestsView: React.FC<PhysicalTestsViewProps> = ({ assignedCl
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!assignedClasses.some((c) => c.id === selectedClassId)) {
+      setSelectedClassId(assignedClasses[0]?.id || '');
+    }
+  }, [assignedClasses, selectedClassId]);
+
+  useEffect(() => {
     if (!selectedClassId) return;
     const classStudents = dataRepository.getStudentsByClass(selectedClassId);
     setStudents(classStudents);

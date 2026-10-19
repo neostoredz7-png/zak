@@ -61,7 +61,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onContinue
         setStatusMessage({ type: 'error', text: res.error || 'فشل تسجيل الدخول، يرجى التحقق من البريد أو كلمة المرور' });
       }
     } else {
-      const res = await signup(email, password, fullName, schoolName, wilaya);
+      const res = await signup(email, password, fullName, schoolName, wilaya, municipality, academicYear);
       setLoading(false);
       if (res.success) {
         setStatusMessage({ type: 'success', text: 'تم إنشاء حساب الأستاذ بنجاح! مرحباً بك في المنصة.' });

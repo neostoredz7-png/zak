@@ -37,6 +37,7 @@ interface ModernLayoutProps {
   profile: Profile;
   onOpenAuth: () => void;
   onOpenSettings: () => void;
+  onOpenLogin?: () => void;
   onOpenImportModal?: () => void;
   onOpenAddClassModal?: () => void;
   children: React.ReactNode;
@@ -50,6 +51,7 @@ export const ModernLayout: React.FC<ModernLayoutProps> = ({
   profile,
   onOpenAuth,
   onOpenSettings,
+  onOpenLogin,
   onOpenImportModal,
   onOpenAddClassModal,
   children,
@@ -225,16 +227,28 @@ export const ModernLayout: React.FC<ModernLayoutProps> = ({
                       <p className="text-[10px] text-slate-500 truncate">{profile.school_name || 'ثانوية أول نوفمبر 1954'}</p>
                     </div>
                   </div>
-                  {isAuthenticated && (
-                    <button
-                      type="button"
-                      onClick={logout}
-                      title="تسجيل الخروج"
-                      className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors"
-                    >
-                      <LogOut className="w-4 h-4" />
-                    </button>
-                  )}
+                  <div className="flex items-center gap-1">
+                    {onOpenLogin && (
+                      <button
+                        type="button"
+                        onClick={onOpenLogin}
+                        title="لوحة تسجيل الدخول / تبديل الحساب"
+                        className="p-1 text-slate-400 hover:text-emerald-700 rounded-lg hover:bg-emerald-50 transition-colors"
+                      >
+                        <LogIn className="w-4 h-4" />
+                      </button>
+                    )}
+                    {isAuthenticated && (
+                      <button
+                        type="button"
+                        onClick={logout}
+                        title="تسجيل الخروج والعودة للوحة الدخول"
+                        className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 text-[10px]">
@@ -366,6 +380,23 @@ export const ModernLayout: React.FC<ModernLayoutProps> = ({
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">قسم جديد</span>
+                </button>
+              )}
+
+              {onOpenLogin && (
+                <button
+                  type="button"
+                  onClick={onOpenLogin}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 hover:border-emerald-600 bg-slate-50 hover:bg-emerald-50/50 text-slate-800 text-xs font-bold transition-all group"
+                  title="فتح لوحة تسجيل الدخول أو تبديل حساب الأستاذ"
+                >
+                  <div className="w-6 h-6 rounded-lg bg-emerald-700 text-white flex items-center justify-center text-[10px] font-bold">
+                    {profile.full_name ? profile.full_name.charAt(0) : 'أ'}
+                  </div>
+                  <span className="hidden md:inline font-medium text-slate-700 group-hover:text-emerald-800">
+                    لوحة الدخول
+                  </span>
+                  <LogIn className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-700" />
                 </button>
               )}
             </div>

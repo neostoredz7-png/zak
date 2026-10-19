@@ -52,6 +52,19 @@ function saveToStorage<T>(key: string, value: T): void {
   } catch (err) {
     console.error(`Error saving ${key} to localStorage:`, err);
   }
+
+  // Persist directly to online server database
+  try {
+    fetch('/api/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, data: value }),
+    }).catch((e) => {
+      console.warn(`Online DB sync for ${key}:`, e.message);
+    });
+  } catch (e) {
+    // ignore
+  }
 }
 
 class DataRepository {
@@ -115,6 +128,68 @@ class DataRepository {
     this.equipment = loadFromStorage('equipment', initialEquipment);
     this.injuries = loadFromStorage('injuries', initialInjuries);
     this.regulations = loadFromStorage('regulations', initialLegalRegulations);
+    this.syncOnlineDatabase();
+  }
+
+  async syncOnlineDatabase(): Promise<boolean> {
+    try {
+      const res = await fetch('/api/data');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.initialized && json.data) {
+          const db = json.data;
+          if (db.profile) this.profile = db.profile;
+          if (Array.isArray(db.classes)) this.classes = db.classes;
+          if (Array.isArray(db.students)) this.students = db.students;
+          if (Array.isArray(db.assessments)) this.assessments = db.assessments;
+          if (Array.isArray(db.marks)) this.marks = db.marks;
+          if (Array.isArray(db.attendance_sessions)) this.attendanceSessions = db.attendance_sessions;
+          if (Array.isArray(db.attendance_records)) this.attendanceRecords = db.attendance_records;
+          if (Array.isArray(db.teaching_units)) this.teachingUnits = db.teaching_units;
+          if (Array.isArray(db.lessons)) this.lessons = db.lessons;
+          if (Array.isArray(db.physical_tests)) this.physicalTests = db.physical_tests;
+          if (Array.isArray(db.test_results)) this.testResults = db.test_results;
+          if (Array.isArray(db.equipment)) this.equipment = db.equipment;
+          if (Array.isArray(db.injuries)) this.injuries = db.injuries;
+          if (Array.isArray(db.regulations)) this.regulations = db.regulations;
+          return true;
+        } else {
+          await this.saveFullDatabaseOnline();
+          return true;
+        }
+      }
+    } catch (err) {
+      // offline fallback
+    }
+    return false;
+  }
+
+  async saveFullDatabaseOnline(): Promise<void> {
+    const fullDb = {
+      profile: this.profile,
+      classes: this.classes,
+      students: this.students,
+      assessments: this.assessments,
+      marks: this.marks,
+      attendance_sessions: this.attendanceSessions,
+      attendance_records: this.attendanceRecords,
+      teaching_units: this.teachingUnits,
+      lessons: this.lessons,
+      physical_tests: this.physicalTests,
+      test_results: this.testResults,
+      equipment: this.equipment,
+      injuries: this.injuries,
+      regulations: this.regulations,
+    };
+    try {
+      await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fullDb }),
+      });
+    } catch (e) {
+      // offline warning
+    }
   }
 
   // --- Profile ---

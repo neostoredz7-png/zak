@@ -25,9 +25,11 @@ import { LegalRegulationsView } from './views/LegalRegulationsView';
 
 import { dataRepository } from './services/dataService';
 import { SchoolClass } from './types';
+import { LoginView } from './views/LoginView';
 
 function MainApp() {
-  const { user, updateProfile } = useAuth();
+  const { user, isAuthenticated, updateProfile } = useAuth();
+  const [showLoginPage, setShowLoginPage] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [detailedClassId, setDetailedClassId] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -37,12 +39,32 @@ function MainApp() {
   );
 
   const refreshData = () => {
-    setAssignedClasses(dataRepository.getTeacherAssignedClasses());
+    const updated = dataRepository.getTeacherAssignedClasses();
+    setAssignedClasses(updated);
+    if (detailedClassId && !updated.some((c) => c.id === detailedClassId)) {
+      setDetailedClassId(null);
+    }
   };
 
   useEffect(() => {
     refreshData();
   }, [activeTab]);
+
+  // If user is not authenticated or explicitly requests the Login Panel
+  if ((!user || !isAuthenticated) || showLoginPage) {
+    return (
+      <LoginView
+        onLoginSuccess={() => {
+          setShowLoginPage(false);
+          refreshData();
+        }}
+        onContinueAsGuest={() => {
+          setShowLoginPage(false);
+          refreshData();
+        }}
+      />
+    );
+  }
 
   // Compute metrics for assigned classes
   const assignedClassIds = new Set(assignedClasses.map((c) => c.id));
@@ -82,6 +104,7 @@ function MainApp() {
       selectedClassId={detailedClassId}
       profile={currentProfile}
       onOpenAuth={() => setShowAuthModal(true)}
+      onOpenLogin={() => setShowLoginPage(true)}
       onOpenSettings={() => handleNavigate('settings')}
     >
       {activeTab === 'dashboard' && (

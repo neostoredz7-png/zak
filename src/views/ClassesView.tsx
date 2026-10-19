@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SchoolClass, GradeLevel } from '../types';
 import { dataRepository } from '../services/dataService';
 import { ExcelImportModal } from '../components/ExcelImportModal';
@@ -20,6 +20,7 @@ import {
   Check,
   Search,
   Filter,
+  Layers,
 } from 'lucide-react';
 
 interface ClassesViewProps {
@@ -36,8 +37,13 @@ export const ClassesView: React.FC<ClassesViewProps> = ({
   onClassesUpdated,
 }) => {
   const [classesList, setClassesList] = useState<SchoolClass[]>(assignedClasses);
+  const [viewScope, setViewScope] = useState<'ASSIGNED' | 'ALL'>('ASSIGNED');
   const [searchQuery, setSearchQuery] = useState('');
   const [gradeFilter, setGradeFilter] = useState<'ALL' | GradeLevel>('ALL');
+
+  useEffect(() => {
+    setClassesList(dataRepository.getAllSchoolClasses());
+  }, [assignedClasses]);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showAddClassModal, setShowAddClassModal] = useState(false);
   const [editingClassId, setEditingClassId] = useState<string | null>(null);
@@ -148,9 +154,11 @@ export const ClassesView: React.FC<ClassesViewProps> = ({
     showToast(!cls.is_assigned ? 'تم إسناد القسم إليك' : 'تم إلغاء إسناد القسم');
   };
 
-  // Filtered classes by search and grade - STRICTLY assigned classes only
+  const allSchool = dataRepository.getAllSchoolClasses();
   const assignedOnly = assignedClasses.filter((c) => Boolean(c.is_assigned === true || (c.is_assigned as any) === 'true'));
-  const displayedClasses = assignedOnly.filter((cls) => {
+  const sourceClasses = viewScope === 'ASSIGNED' ? assignedOnly : allSchool;
+
+  const displayedClasses = sourceClasses.filter((cls) => {
     const matchesGrade = gradeFilter === 'ALL' || cls.grade_level === gradeFilter;
     const query = searchQuery.trim().toLowerCase();
     const matchesSearch =
@@ -161,9 +169,9 @@ export const ClassesView: React.FC<ClassesViewProps> = ({
     return matchesGrade && matchesSearch;
   });
 
-  const count1AS = assignedOnly.filter((c) => c.grade_level === '1AS').length;
-  const count2AS = assignedOnly.filter((c) => c.grade_level === '2AS').length;
-  const count3AS = assignedOnly.filter((c) => c.grade_level === '3AS').length;
+  const count1AS = sourceClasses.filter((c) => c.grade_level === '1AS').length;
+  const count2AS = sourceClasses.filter((c) => c.grade_level === '2AS').length;
+  const count3AS = sourceClasses.filter((c) => c.grade_level === '3AS').length;
 
   return (
     <div className="space-y-6 pb-12 text-right">
@@ -182,9 +190,14 @@ export const ClassesView: React.FC<ClassesViewProps> = ({
             <Users className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-900">الأقسام التربوية المسندة</h2>
-            <p className="text-xs text-slate-500">
-              الأقسام التي تدرّسها فعلياً هذا الموسم الدراسي ({assignedClasses.length} أقسام مسندة)
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-bold text-slate-900">الأقسام التربوية</h2>
+              <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                {assignedClasses.length} أقسام مسندة إليك
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              الأقسام التي تدرّسها فعلياً هذا الموسم الدراسي (تظهر حصرياً في دفاتر التنقيط، الغيابات، والكشوفات)
             </p>
           </div>
         </div>
@@ -218,7 +231,7 @@ export const ClassesView: React.FC<ClassesViewProps> = ({
             className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition-colors"
           >
             <Settings className="w-4 h-4 text-slate-600" />
-            <span>إعدادات المؤسسة</span>
+            <span>إعدادات المؤسسة والإسناد</span>
           </button>
 
           {/* 4. TOTAL CLEAR / RESET SEASON BUTTON */}
@@ -230,6 +243,45 @@ export const ClassesView: React.FC<ClassesViewProps> = ({
           >
             <Trash2 className="w-4 h-4 text-rose-600" />
             <span>تهيئة ومسح الموسم</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Scope Selector Notice Banner */}
+      <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2">
+          <Layers className="w-4 h-4 text-emerald-700 shrink-0" />
+          <span className="font-bold text-slate-800">نطاق عرض الأقسام:</span>
+          <span className="text-slate-500 text-[11px]">
+            {viewScope === 'ASSIGNED'
+              ? 'تظهر لك فقط الأقسام المسندة إليك للتدريس'
+              : 'عرض كافة أقسام الثانوية للتمكن من إسناد أو إلغاء إسناد أي قسم بسرعة'}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-200 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => setViewScope('ASSIGNED')}
+            className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-colors flex items-center gap-1.5 ${
+              viewScope === 'ASSIGNED'
+                ? 'bg-emerald-700 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>أقسامي المسندة ({assignedClasses.length})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewScope('ALL')}
+            className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-colors flex items-center gap-1.5 ${
+              viewScope === 'ALL'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <span>كل أقسام المؤسسة ({allSchool.length})</span>
           </button>
         </div>
       </div>
@@ -375,15 +427,30 @@ export const ClassesView: React.FC<ClassesViewProps> = ({
               className="bg-white rounded-2xl border border-slate-200 p-5 hover:border-emerald-600 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between relative"
             >
               <div>
-                {/* Level badge and action buttons */}
+                {/* Level badge, assignment status, and action buttons */}
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200">
-                    {cls.grade_level === '1AS'
-                      ? 'الأولى ثانوي'
-                      : cls.grade_level === '2AS'
-                      ? 'الثانية ثانوي'
-                      : 'الثالثة ثانوي'}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200">
+                      {cls.grade_level === '1AS'
+                        ? 'الأولى ثانوي'
+                        : cls.grade_level === '2AS'
+                        ? 'الثانية ثانوي'
+                        : 'الثالثة ثانوي'}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={(e) => handleToggleAssignment(cls, e)}
+                      className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-all ${
+                        cls.is_assigned
+                          ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs hover:bg-emerald-700'
+                          : 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200 hover:text-slate-900'
+                      }`}
+                      title={cls.is_assigned ? 'انقر لإلغاء إسناد هذا القسم' : 'انقر لإسناد هذا القسم إليك'}
+                    >
+                      {cls.is_assigned ? '✓ مسند إليك' : '+ إسناد لي'}
+                    </button>
+                  </div>
 
                   {/* Quick Edit and Delete buttons right on the card */}
                   <div className="flex items-center gap-1">

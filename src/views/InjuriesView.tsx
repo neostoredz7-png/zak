@@ -122,16 +122,32 @@ export const InjuriesView: React.FC<InjuriesViewProps> = ({ profile, assignedCla
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 text-right border border-slate-100 animate-in fade-in">
             <h3 className="text-base font-bold text-slate-900 mb-3">تسجيل حادث / إصابة رياضية</h3>
             <form onSubmit={handleSave} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">اسم ولقب التلميذ المصاب:</label>
-                <input
-                  type="text"
-                  required
-                  value={form.student_name}
-                  onChange={(e) => setForm({ ...form, student_name: e.target.value })}
-                  placeholder="مثال: نورهان قاسمي"
-                  className="w-full p-2.5 border border-slate-300 rounded-lg font-bold"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">اسم ولقب التلميذ المصاب:</label>
+                  <input
+                    type="text"
+                    required
+                    value={form.student_name}
+                    onChange={(e) => setForm({ ...form, student_name: e.target.value })}
+                    placeholder="مثال: نورهان قاسمي"
+                    className="w-full p-2.5 border border-slate-300 rounded-lg font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">القسم المسند:</label>
+                  <select
+                    value={form.class_id}
+                    onChange={(e) => setForm({ ...form, class_id: e.target.value })}
+                    className="w-full p-2.5 border border-slate-300 rounded-lg font-bold bg-slate-50"
+                  >
+                    {assignedClasses.map((cls, idx) => (
+                      <option key={cls.id ? `${cls.id}-${idx}` : idx} value={cls.id}>
+                        {cls.name} ({cls.track})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

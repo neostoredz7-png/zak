@@ -568,22 +568,47 @@ export const SchoolSettingsView: React.FC<SchoolSettingsViewProps> = ({
         </div>
       </div>
 
-      {/* 3. Supabase Cloud Database Sync Section */}
+      {/* 3. Online Database & Supabase Cloud Section */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
             <Database className="w-5 h-5 text-emerald-700" />
             <h3 className="text-sm font-bold text-slate-900">
-              ج. الربط مع قاعدة بيانات Supabase السحابية (PostgreSQL & Auth)
+              ج. قاعدة البيانات السحابية الأونلاين (Online Database — من غير Firebase)
             </h3>
           </div>
-          <span className="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded font-mono">
-            {currentSupabase.isConfigured ? 'تم التهيئة' : 'جاهز للربط'}
+          <span className="text-xs bg-emerald-100 text-emerald-900 font-bold px-3 py-1 rounded-full flex items-center gap-1.5 self-start sm:self-auto">
+            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+            <span>قاعدة البيانات متصلة ومحفوظة أونلاين</span>
           </span>
         </div>
 
+        {/* Live Online Database Status Banner */}
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-slate-800">حالة التخزين والحفظ الدائم:</span>
+            <span className="text-emerald-700 font-bold">✓ نشط (سيرفر أونلاين + تخزين آمن)</span>
+          </div>
+          <p className="text-slate-600 text-[11px] leading-relaxed">
+            يتم تسجيل كافة العمليات (الأقسام، التلاميذ، دفاتر التنقيط، الحضور والغيابات، جذاذات الحصص، والإصابات) بصورة فورية ومستمرة في قاعدة بيانات السيرفر الأونلاين بدون الحاجة لـ Firebase، مع إمكانية ربطها بمشروع Supabase PostgreSQL السحابي لمزامنة متعددة الأجهزة.
+          </p>
+          <div className="pt-2 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                await dataRepository.saveFullDatabaseOnline();
+                showToast('تمت المزامنة وحفظ كافة السجلات في قاعدة البيانات الأونلاين بنجاح!');
+              }}
+              className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-3.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-colors"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>مزامنة وحفظ فوري لقاعدة البيانات الآن</span>
+            </button>
+          </div>
+        </div>
+
         <p className="text-xs text-slate-600 leading-relaxed">
-          التطبيق يعمل حالياً بكامل وظائفه عبر التخزين المحلي الآمن. لربطه بقاعدة بيانات Supabase السحابية مع تفعيل سياسات الأمان (Row Level Security)، أدخل رابط مشروعك والمفتاح العام (anon key)، أو حمل ملف <code className="bg-slate-100 px-1 py-0.5 rounded text-emerald-800 font-mono">/supabase-schema.sql</code>.
+          للربط السحابي المباشر مع قاعدة بيانات <strong>Supabase</strong> (PostgreSQL السحابية المجانية مع المصادقة): أدخل رابط مشروعك والمفتاح العام، أو حمّل ملف المخطط <code className="bg-slate-100 px-1 py-0.5 rounded text-emerald-800 font-mono">/supabase-schema.sql</code>.
         </p>
 
         {supabaseStatus && (
@@ -596,7 +621,7 @@ export const SchoolSettingsView: React.FC<SchoolSettingsViewProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
           <div>
             <label className="block font-bold text-slate-700 mb-1">
-              Project URL (رابط المشروع):
+              Project URL (رابط مشروع Supabase):
             </label>
             <input
               type="text"

@@ -43,10 +43,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   useEffect(() => {
     if (initialClassId && assignedClasses.some((c) => c.id === initialClassId)) {
       setSelectedClassId(initialClassId);
-    } else if (!selectedClassId && assignedClasses.length > 0) {
-      setSelectedClassId(assignedClasses[0].id);
+    } else if (!assignedClasses.some((c) => c.id === selectedClassId)) {
+      setSelectedClassId(assignedClasses[0]?.id || '');
     }
-  }, [initialClassId, assignedClasses]);
+  }, [initialClassId, assignedClasses, selectedClassId]);
 
   useEffect(() => {
     if (!selectedClassId) return;

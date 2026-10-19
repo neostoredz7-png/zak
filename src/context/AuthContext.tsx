@@ -8,7 +8,15 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
-  signup: (email: string, password: string, fullName: string, schoolName: string, wilaya: string) => Promise<{ success: boolean; error?: string }>;
+  signup: (
+    email: string,
+    password: string,
+    fullName: string,
+    schoolName: string,
+    wilaya: string,
+    municipality?: string,
+    academicYear?: string
+  ) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
   isSupabaseConnected: boolean;
@@ -35,21 +43,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const parsed = JSON.parse(savedUserJson);
         setUser(parsed);
       } catch {
-        setUser(dataRepository.getProfile());
+        setUser(null);
       }
     } else {
-      // Default initial logged-in teacher for instant usability
-      const defaultProf = dataRepository.getProfile();
-      setUser(defaultProf);
-      localStorage.setItem('eps_dz_current_user', JSON.stringify(defaultProf));
+      // Show login page so teacher enters credentials or chooses quick demo
+      setUser(null);
     }
     setIsLoading(false);
   }, []);
 
   const login = async (email: string, password?: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
-    const supabase = getSupabase();
 
+    // 1. Authenticate with Online Server Database
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.user) {
+          const prof = json.user;
+          setUser(prof);
+          localStorage.removeItem('eps_dz_logged_out');
+          localStorage.setItem('eps_dz_current_user', JSON.stringify(prof));
+          setIsLoading(false);
+          return { success: true };
+        }
+      }
+    } catch {
+      // fallback if offline
+    }
+
+    const supabase = getSupabase();
     if (supabase && password) {
       try {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -88,11 +116,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     password: string,
     fullName: string,
     schoolName: string,
-    wilaya: string
+    wilaya: string,
+    municipality?: string,
+    academicYear?: string
   ): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
-    const supabase = getSupabase();
 
+    // 1. Register with Online Server Database
+    try {
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          password,
+          fullName,
+          schoolName,
+          wilaya,
+          municipality,
+          academicYear,
+        }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.user) {
+          const newProf = json.user;
+          setUser(newProf);
+          localStorage.removeItem('eps_dz_logged_out');
+          localStorage.setItem('eps_dz_current_user', JSON.stringify(newProf));
+          setIsLoading(false);
+          return { success: true };
+        }
+      }
+    } catch {
+      // fallback
+    }
+
+    const supabase = getSupabase();
     if (supabase) {
       try {
         const { data, error } = await supabase.auth.signUp({
@@ -132,6 +192,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       full_name: fullName,
       school_name: schoolName,
       wilaya,
+      municipality: municipality || '',
+      academic_year: academicYear || '2026 / 2027',
     });
     setUser(newProf);
     localStorage.removeItem('eps_dz_logged_out');
