@@ -1,0 +1,40 @@
+{
+  "entities": {
+    "Profile": {
+      "title": "Profile",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "school": { "type": "string" }
+      },
+      "required": ["id", "email"]
+    },
+    "SchoolClass": {
+      "title": "SchoolClass",
+      "description": "School class information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "grade_level": { "type": "string" },
+        "is_assigned": { "type": "boolean" },
+        "student_count": { "type": "number" },
+        "user_id": { "type": "string" }
+      },
+      "required": ["id", "name", "user_id"]
+    }
+  },
+  "firestore": {
+    "/profiles/{userId}": {
+      "schema": { "$ref": "#/entities/Profile" },
+      "description": "User profiles"
+    },
+    "/classes/{classId}": {
+      "schema": { "$ref": "#/entities/SchoolClass" },
+      "description": "School classes"
+    }
+  }
+}

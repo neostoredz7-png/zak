@@ -55,12 +55,10 @@ function MainApp() {
     const unsubscribe = dataRepository.subscribe(() => {
       refreshData();
     });
-
-    dataRepository.syncOnlineDatabase().then(() => {
-      refreshData();
-    });
-
-    return unsubscribe;
+    
+    refreshData();
+    
+    return () => unsubscribe();
   }, []);
 
   // If user is not authenticated or explicitly requests the Login Panel
