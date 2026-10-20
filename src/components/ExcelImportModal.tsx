@@ -531,20 +531,82 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
               colMap['gender'] = idx;
             }
 
-            // Date of birth
+            // Place of birth (detect strictly place, avoid matching combined date+place)
             if (
-              c.includes('تاريخ الازدياد') ||
-              c.includes('تاريخ الميلاد') ||
-              c.includes('ميلاد') ||
-              c.includes('naissance') ||
-              c.includes('birth')
+              !c.includes('تاريخ') &&
+              !c.includes('date') &&
+              (c.includes('مكان الازدياد') ||
+                c.includes('مكان الميلاد') ||
+                c.includes('مكان ازدياد') ||
+                c.includes('مكان ميلاد') ||
+                c.includes('lieu de naissance') ||
+                c.includes('lieu naissance') ||
+                c === 'مكان' ||
+                c === 'lieu')
             ) {
-              colMap['birth_date'] = idx;
+              if (colMap['birth_place'] === undefined) {
+                colMap['birth_place'] = idx;
+              }
             }
 
-            // Place of birth
-            if (c.includes('مكان الازدياد') || c.includes('مكان الميلاد') || c.includes('مكان') || c.includes('lieu')) {
-              colMap['birth_place'] = idx;
+            // Combined Date & Place (تاريخ ومكان الازدياد / الميلاد)
+            if (
+              (c.includes('تاريخ') && c.includes('مكان')) ||
+              c.includes('date et lieu') ||
+              c.includes('date/lieu')
+            ) {
+              colMap['birth_combined'] = idx;
+            }
+
+            // Birth certificate (رقم عقد الميلاد)
+            if (
+              c.includes('عقد الميلاد') ||
+              c.includes('رقم عقد') ||
+              c.includes('رقم العقد') ||
+              c.includes('عقد') ||
+              c.includes('acte')
+            ) {
+              if (colMap['birth_cert'] === undefined) {
+                colMap['birth_cert'] = idx;
+              }
+            }
+
+            // High-confidence Date of birth (strictly birth date, avoid entry dates, registration dates, places, and contract numbers)
+            const isEntryOrOtherDate =
+              c.includes('دخول') ||
+              c.includes('تسجيل') ||
+              c.includes('التحاق') ||
+              c.includes('تنصيب') ||
+              c.includes('إصدار') ||
+              c.includes('خروج') ||
+              c.includes('مغادرة');
+
+            if (
+              !isEntryOrOtherDate &&
+              !c.includes('مكان') &&
+              !c.includes('lieu') &&
+              !c.includes('عقد') &&
+              !c.includes('acte') &&
+              (c.includes('تاريخ الازدياد') ||
+                c.includes('تاريخ الميلاد') ||
+                c.includes('تاريخ ميلاد') ||
+                c.includes('تاريخ ازدياد') ||
+                c.includes('date de naissance') ||
+                c.includes('date naissance') ||
+                c.includes('date_naissance') ||
+                c.includes('d.n') ||
+                c === 'dob' ||
+                c === 'd.o.b')
+            ) {
+              colMap['birth_date'] = idx;
+            } else if (
+              colMap['birth_date'] === undefined &&
+              !isEntryOrOtherDate &&
+              !c.includes('مكان') &&
+              !c.includes('عقد') &&
+              (c === 'تاريخ' || c === 'date' || c.includes('birth'))
+            ) {
+              colMap['birth_date'] = idx;
             }
 
             // National ID (NIN)
@@ -553,13 +615,8 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
             }
 
             // Registration number
-            if (c.includes('القيد') || c.includes('التسجيل') || c.includes('matricule')) {
+            if (c.includes('القيد') || (c.includes('التسجيل') && !c.includes('تاريخ')) || c.includes('matricule')) {
               colMap['reg_number'] = idx;
-            }
-
-            // Birth certificate
-            if (c.includes('عقد الميلاد') || c.includes('رقم العقد') || c.includes('acte')) {
-              colMap['birth_cert'] = idx;
             }
 
             // Schooling regime
@@ -572,6 +629,19 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
               colMap['student_num'] = idx;
             }
           });
+
+          // Special recognition for Algerian Ministry Digitization:
+          // In official digitization lists, Column E (index 4) is ALWAYS the Date of Birth (تاريخ الميلاد / تاريخ الازدياد).
+          // Column F (index 5) is مكان الازدياد, Column G (index 6) is الجنس.
+          if (colMap['birth_date'] === undefined && headerRow.length > 4) {
+            colMap['birth_date'] = 4; // Column E
+          }
+          if (colMap['birth_place'] === undefined && headerRow.length > 5) {
+            colMap['birth_place'] = 5; // Column F
+          }
+          if (colMap['gender'] === undefined && headerRow.length > 6) {
+            colMap['gender'] = 6; // Column G
+          }
 
           // Process student rows in this sheet
           for (let r = headerRowIdx + 1; r < matrix.length; r++) {
@@ -668,15 +738,103 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
 
             const nationalId = colMap['national_id'] !== undefined ? String(row[colMap['national_id']] || '').trim() : '';
             const regNumber = colMap['reg_number'] !== undefined ? String(row[colMap['reg_number']] || '').trim() : '';
-            const rawGender = colMap['gender'] !== undefined ? String(row[colMap['gender']] || '').trim() : 'ذكر';
-            let birthDate = colMap['birth_date'] !== undefined ? row[colMap['birth_date']] : '';
-            if (birthDate instanceof Date) {
-              birthDate = birthDate.toISOString().split('T')[0];
-            } else {
-              birthDate = String(birthDate || '').trim();
+            const rawGender =
+              colMap['gender'] !== undefined && row[colMap['gender']] !== undefined
+                ? String(row[colMap['gender']]).trim()
+                : row[6] !== undefined && String(row[6]).trim() !== ''
+                ? String(row[6]).trim()
+                : 'ذكر';
+
+            // Robust birth date extraction - strictly recognizing Column E (0-based index 4) as Date of Birth
+            const valAtColE = row[4];
+            const isColEDate =
+              valAtColE instanceof Date ||
+              (typeof valAtColE === 'number' && valAtColE > 25000 && valAtColE < 55000) ||
+              (typeof valAtColE === 'string' &&
+                /(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})|(\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})/.test(valAtColE.trim()));
+
+            let rawBirthVal: any = '';
+            if (isColEDate) {
+              // Direct priority: Column E contains the date of birth
+              rawBirthVal = valAtColE;
+            } else if (colMap['birth_date'] !== undefined && row[colMap['birth_date']] !== undefined && String(row[colMap['birth_date']]).trim() !== '') {
+              rawBirthVal = row[colMap['birth_date']];
+            } else if (valAtColE !== undefined && String(valAtColE).trim() !== '') {
+              // Standard Digitization column: Column E
+              rawBirthVal = valAtColE;
+            } else if (colMap['birth_combined'] !== undefined) {
+              rawBirthVal = row[colMap['birth_combined']];
             }
 
-            const birthPlace = colMap['birth_place'] !== undefined ? String(row[colMap['birth_place']] || '').trim() : '';
+            let birthDate = '';
+            let extraPlaceFromDateCell = '';
+
+            // A. JavaScript Date object
+            if (rawBirthVal instanceof Date && !isNaN(rawBirthVal.getTime())) {
+              birthDate = rawBirthVal.toISOString().split('T')[0];
+            } else if (typeof rawBirthVal === 'number' && rawBirthVal > 25000 && rawBirthVal < 55000) {
+              // B. Numeric Excel Date serial (e.g. 39542)
+              const jsDate = new Date(Math.round((rawBirthVal - 25569) * 86400 * 1000));
+              if (!isNaN(jsDate.getTime())) {
+                birthDate = jsDate.toISOString().split('T')[0];
+              }
+            } else {
+              const strVal = String(rawBirthVal || '').trim();
+              const dateMatch = strVal.match(/(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})|(\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})/);
+              if (dateMatch) {
+                birthDate = dateMatch[0];
+                const rest = strVal.replace(dateMatch[0], '').replace(/[بـ\-\(\)\[\],]/g, ' ').trim();
+                if (rest.length > 1 && isNaN(Number(rest))) {
+                  extraPlaceFromDateCell = rest;
+                }
+              } else if (strVal && !isNaN(Number(strVal)) && Number(strVal) > 25000 && Number(strVal) < 55000) {
+                const num = Number(strVal);
+                const jsDate = new Date(Math.round((num - 25569) * 86400 * 1000));
+                if (!isNaN(jsDate.getTime())) {
+                  birthDate = jsDate.toISOString().split('T')[0];
+                }
+              }
+            }
+
+            // C. Auto-Recovery: if no date was found from the assigned column (e.g. column misaligned), scan other cells for a genuine date!
+            if (!birthDate) {
+              for (let cIdx = 0; cIdx < row.length; cIdx++) {
+                if (
+                  cIdx === colMap['student_num'] ||
+                  cIdx === colMap['national_id'] ||
+                  cIdx === colMap['reg_number'] ||
+                  cIdx === colMap['last_name'] ||
+                  cIdx === colMap['first_name']
+                ) {
+                  continue;
+                }
+                const cell = row[cIdx];
+                if (cell instanceof Date && !isNaN(cell.getTime())) {
+                  birthDate = cell.toISOString().split('T')[0];
+                  break;
+                }
+                if (typeof cell === 'number' && cell > 28000 && cell < 52000) {
+                  const jsDate = new Date(Math.round((cell - 25569) * 86400 * 1000));
+                  if (!isNaN(jsDate.getTime())) {
+                    birthDate = jsDate.toISOString().split('T')[0];
+                    break;
+                  }
+                }
+                if (typeof cell === 'string') {
+                  const m = cell.trim().match(/(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})|(\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})/);
+                  if (m) {
+                    birthDate = m[0];
+                    break;
+                  }
+                }
+              }
+            }
+
+            let birthPlace = colMap['birth_place'] !== undefined ? String(row[colMap['birth_place']] || '').trim() : '';
+            if (!birthPlace && extraPlaceFromDateCell) {
+              birthPlace = extraPlaceFromDateCell;
+            }
+
             const birthCertNo = colMap['birth_cert'] !== undefined ? String(row[colMap['birth_cert']] || '').trim() : '';
             const schoolingRegime = colMap['regime'] !== undefined ? String(row[colMap['regime']] || '').trim() : 'خارجي';
             const studentNum =

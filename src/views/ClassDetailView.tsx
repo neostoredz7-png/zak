@@ -364,69 +364,83 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
               <thead>
                 <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-bold">
                   <th className="p-3 text-center w-12">الرقم</th>
-                  <th className="p-3 text-center w-20 font-mono">رقم القيد</th>
                   <th className="p-3">اللقب</th>
                   <th className="p-3">الاسم</th>
                   <th className="p-3 text-center w-16">الجنس</th>
-                  <th className="p-3 font-mono">تاريخ ومكان الازدياد</th>
-                  <th className="p-3 text-center">نظام التمدرس</th>
-                  <th className="p-3 font-mono text-[11px]">رقم التعريف</th>
-                  <th className="p-3 text-center w-24">الحالة الصحية</th>
-                  <th className="p-3 text-center w-20">إجراءات</th>
+                  <th className="p-3 text-center">تاريخ الازدياد</th>
+                  <th className="p-3 text-center w-28">الحالة الصحية</th>
+                  <th className="p-3 text-center w-24">إجراءات</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredStudents.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="p-8 text-center text-slate-400">
+                    <td colSpan={7} className="p-8 text-center text-slate-400">
                       لا يوجد تلاميذ يطابقون البحث في هذا القسم. يمكنك استيراد قائمة القسم مباشرة من ملف Excel الخاص بالرقمنة.
                     </td>
                   </tr>
                 ) : (
-                  filteredStudents.map((st, idx) => (
-                    <tr key={st.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="p-3 text-center font-mono font-bold text-slate-500">
-                        {st.student_number || idx + 1}
-                      </td>
-                      <td className="p-3 text-center font-mono font-bold text-blue-700">
-                        {st.registration_number || '—'}
-                      </td>
-                      <td className="p-3 font-bold text-slate-900">{st.last_name}</td>
-                      <td className="p-3 font-semibold text-slate-800">{st.first_name}</td>
-                      <td className="p-3 text-center">
-                        <span
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                            st.gender === 'M' ? 'bg-blue-50 text-blue-700' : 'bg-rose-50 text-rose-700'
-                          }`}
-                        >
-                          {st.gender === 'M' ? 'ذكر' : 'أنثى'}
-                        </span>
-                      </td>
-                      <td className="p-3 text-slate-600">
-                        {st.birth_date ? (
-                          <span>
-                            <span className="font-mono text-slate-800">{st.birth_date}</span>
-                            {st.birth_place && <span className="text-slate-400 mr-1.5">({st.birth_place})</span>}
+                  filteredStudents.map((st, idx) => {
+                    // Clean and validate birth date display
+                    let displayBirthDate = '—';
+                    if (st.birth_date) {
+                      const str = String(st.birth_date).trim();
+                      if (!isNaN(Number(str)) && Number(str) > 25000 && Number(str) < 55000) {
+                        const jsDate = new Date(Math.round((Number(str) - 25569) * 86400 * 1000));
+                        if (!isNaN(jsDate.getTime())) {
+                          displayBirthDate = jsDate.toISOString().split('T')[0];
+                        }
+                      } else {
+                        const dateMatch = str.match(/(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})|(\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})/);
+                        if (dateMatch) {
+                          displayBirthDate = dateMatch[0];
+                        } else {
+                          displayBirthDate = str;
+                        }
+                      }
+                    }
+
+                    return (
+                      <tr key={st.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="p-3 text-center font-mono font-bold text-slate-500">
+                          {st.student_number || idx + 1}
+                        </td>
+                        <td className="p-3 font-bold text-slate-900">{st.last_name}</td>
+                        <td className="p-3 font-semibold text-slate-800">{st.first_name}</td>
+                        <td className="p-3 text-center">
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                              st.gender === 'M' ? 'bg-blue-50 text-blue-700' : 'bg-rose-50 text-rose-700'
+                            }`}
+                          >
+                            {st.gender === 'M' ? 'ذكر' : 'أنثى'}
                           </span>
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-                      <td className="p-3 text-center text-slate-600 font-medium">
-                        {st.schooling_regime || 'خارجي'}
-                      </td>
-                      <td className="p-3 font-mono text-[10px] text-slate-400 truncate max-w-[110px]">
-                        {st.national_id || '—'}
-                      </td>
-                      <td className="p-3 text-center">
-                        {st.is_exempt ? (
-                          <span className="text-[10px] bg-rose-50 text-rose-800 border border-rose-200 px-2 py-0.5 rounded font-bold">
-                            معفى طبياً
-                          </span>
-                        ) : (
-                          <span className="text-[10px] text-emerald-700 font-medium">ممارس</span>
-                        )}
-                      </td>
+                        </td>
+                        <td className="p-3 text-center">
+                          {displayBirthDate !== '—' ? (
+                            <div className="inline-flex flex-col items-center">
+                              <span className="font-mono font-bold text-slate-800 bg-slate-100/80 px-2.5 py-1 rounded-lg border border-slate-200/80 text-[11px]">
+                                {displayBirthDate}
+                              </span>
+                              {st.birth_place && (
+                                <span className="text-[10px] text-slate-500 mt-0.5 font-medium">
+                                  بـ {st.birth_place}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 font-mono">—</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-center">
+                          {st.is_exempt ? (
+                            <span className="text-[10px] bg-rose-50 text-rose-800 border border-rose-200 px-2 py-0.5 rounded font-bold">
+                              معفى طبياً
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-emerald-700 font-medium">ممارس</span>
+                          )}
+                        </td>
                       <td className="p-3 text-center">
                         <div className="flex items-center justify-center gap-1">
                           <button
@@ -463,8 +477,8 @@ export const ClassDetailView: React.FC<ClassDetailViewProps> = ({
                         </div>
                       </td>
                     </tr>
-                  ))
-                )}
+                  );
+                }))}
               </tbody>
             </table>
           </div>

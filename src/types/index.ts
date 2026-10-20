@@ -10,6 +10,10 @@ export interface Profile {
   academic_year: string;
   specialty: string;
   phone?: string;
+  matricule?: string; // رقم التأجير / التعريف الوظيفي
+  director_name?: string; // اسم السيد المدير
+  inspector_name?: string; // اسم السيد المفتش
+  username?: string; // اسم المستخدم للدخول
   school_logo_url?: string;
 }
 

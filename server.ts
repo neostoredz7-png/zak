@@ -154,6 +154,58 @@ app.post('/api/auth/signup', (req: Request, res: Response) => {
   res.json({ success: true, user: userSafe });
 });
 
+// Update Teacher Profile and Login Credentials
+app.post('/api/auth/update-profile', (req: Request, res: Response) => {
+  const { id, email, password, fullName, matricule, phone, schoolName, wilaya, municipality, academicYear, specialty, directorName, inspectorName } = req.body;
+  const db = readDatabase() || {};
+  const currentProfile = db.profile || {};
+
+  const updatedProfile = {
+    ...currentProfile,
+    id: id || currentProfile.id || 'teacher-zakaria-01',
+    email: email || currentProfile.email || 'prof.zakaria@education.dz',
+    full_name: fullName !== undefined ? fullName : currentProfile.full_name,
+    matricule: matricule !== undefined ? matricule : currentProfile.matricule,
+    phone: phone !== undefined ? phone : currentProfile.phone,
+    school_name: schoolName !== undefined ? schoolName : currentProfile.school_name,
+    wilaya: wilaya !== undefined ? wilaya : currentProfile.wilaya,
+    municipality: municipality !== undefined ? municipality : currentProfile.municipality,
+    academic_year: academicYear !== undefined ? academicYear : currentProfile.academic_year,
+    specialty: specialty !== undefined ? specialty : currentProfile.specialty,
+    director_name: directorName !== undefined ? directorName : currentProfile.director_name,
+    inspector_name: inspectorName !== undefined ? inspectorName : currentProfile.inspector_name,
+  };
+
+  db.profile = updatedProfile;
+
+  // Also update user in users array if exists
+  if (!db.users) db.users = [];
+  const userIdx = db.users.findIndex((u: any) => u.id === updatedProfile.id || u.email === updatedProfile.email);
+  if (userIdx >= 0) {
+    db.users[userIdx] = {
+      ...db.users[userIdx],
+      email: updatedProfile.email,
+      full_name: updatedProfile.full_name,
+      school_name: updatedProfile.school_name,
+      wilaya: updatedProfile.wilaya,
+      ...(password ? { password } : {}),
+    };
+  } else if (password) {
+    db.users.push({
+      id: updatedProfile.id,
+      email: updatedProfile.email,
+      password,
+      full_name: updatedProfile.full_name,
+      school_name: updatedProfile.school_name,
+      wilaya: updatedProfile.wilaya,
+      created_at: new Date().toISOString(),
+    });
+  }
+
+  writeDatabase(db);
+  res.json({ success: true, profile: updatedProfile, message: 'تم تحديث بيانات الأستاذ ومعلومات الدخول في السيرفر' });
+});
+
 // Vite middleware for SPA
 async function startServer() {
   const isProd = process.env.NODE_ENV === 'production';

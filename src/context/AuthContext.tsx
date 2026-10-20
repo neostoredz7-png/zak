@@ -19,6 +19,7 @@ interface AuthContextType {
   ) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
+  updateCredentials: (updates: Partial<Profile>, newPassword?: string) => Promise<{ success: boolean; error?: string }>;
   isSupabaseConnected: boolean;
 }
 
@@ -218,6 +219,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('eps_dz_current_user', JSON.stringify(updated));
   };
 
+  const updateCredentials = async (
+    updates: Partial<Profile>,
+    newPassword?: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const updated = await dataRepository.updateProfile(updates);
+      setUser(updated);
+      localStorage.setItem('eps_dz_current_user', JSON.stringify(updated));
+
+      // Persist to server online database
+      await fetch('/api/auth/update-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: updated.id,
+          email: updated.email,
+          fullName: updated.full_name,
+          matricule: updated.matricule,
+          phone: updated.phone,
+          schoolName: updated.school_name,
+          wilaya: updated.wilaya,
+          municipality: updated.municipality,
+          academicYear: updated.academic_year,
+          specialty: updated.specialty,
+          directorName: updated.director_name,
+          inspectorName: updated.inspector_name,
+          password: newPassword,
+        }),
+      });
+
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'فشل تحديث البيانات' };
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -228,6 +265,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signup,
         logout,
         updateProfile,
+        updateCredentials,
         isSupabaseConnected,
       }}
     >
