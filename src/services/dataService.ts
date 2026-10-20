@@ -96,20 +96,43 @@ class DataRepository {
   private async initDatabase() {
     if (!auth.currentUser) return;
     try {
-      const profileDoc = await getDoc(doc(db, 'profiles', auth.currentUser.uid));
-      if (profileDoc.exists()) {
-        this.profile = profileDoc.data() as Profile;
-        saveToStorageLocalOnly('profile', this.profile);
+      const userId = auth.currentUser.uid;
+      const collections = [
+        'profiles', 'classes', 'students', 'assessments', 'marks', 
+        'attendance_sessions', 'attendance_records', 'lessons', 
+        'teaching_units', 'physical_tests', 'test_results', 
+        'equipment', 'injuries', 'regulations'
+      ];
+
+      for (const coll of collections) {
+        if (coll === 'profiles') {
+          const profileDoc = await getDoc(doc(db, 'profiles', userId));
+          if (profileDoc.exists()) {
+            this.profile = profileDoc.data() as Profile;
+            saveToStorageLocalOnly('profile', this.profile);
+          }
+        } else {
+          const q = query(collection(db, coll), where('user_id', '==', userId));
+          const snapshot = await getDocs(q);
+          const data = snapshot.docs.map(doc => doc.data());
+          
+          switch (coll) {
+            case 'classes': this.classes = data as SchoolClass[]; saveToStorageLocalOnly('classes', this.classes); break;
+            case 'students': this.students = data as Student[]; saveToStorageLocalOnly('students', this.students); break;
+            case 'assessments': this.assessments = data as Assessment[]; saveToStorageLocalOnly('assessments', this.assessments); break;
+            case 'marks': this.marks = data as Mark[]; saveToStorageLocalOnly('marks', this.marks); break;
+            case 'attendance_sessions': this.attendanceSessions = data as AttendanceSession[]; saveToStorageLocalOnly('attendance_sessions', this.attendanceSessions); break;
+            case 'attendance_records': this.attendanceRecords = data as AttendanceRecord[]; saveToStorageLocalOnly('attendance_records', this.attendanceRecords); break;
+            case 'lessons': this.lessons = data as Lesson[]; saveToStorageLocalOnly('lessons', this.lessons); break;
+            case 'teaching_units': this.teachingUnits = data as TeachingUnit[]; saveToStorageLocalOnly('teaching_units', this.teachingUnits); break;
+            case 'physical_tests': this.physicalTests = data as PhysicalTest[]; saveToStorageLocalOnly('physical_tests', this.physicalTests); break;
+            case 'test_results': this.testResults = data as PhysicalTestResult[]; saveToStorageLocalOnly('test_results', this.testResults); break;
+            case 'equipment': this.equipment = data as SportsEquipment[]; saveToStorageLocalOnly('equipment', this.equipment); break;
+            case 'injuries': this.injuries = data as StudentInjury[]; saveToStorageLocalOnly('injuries', this.injuries); break;
+            case 'regulations': this.regulations = data as LegalRegulation[]; saveToStorageLocalOnly('regulations', this.regulations); break;
+          }
+        }
       }
-      const classesQuery = query(collection(db, 'classes'), where('user_id', '==', auth.currentUser.uid));
-      const classesSnapshot = await getDocs(classesQuery);
-      this.classes = classesSnapshot.docs.map(doc => doc.data() as SchoolClass);
-      saveToStorageLocalOnly('classes', this.classes);
-      
-      const studentsQuery = query(collection(db, 'students'), where('user_id', '==', auth.currentUser.uid));
-      const studentsSnapshot = await getDocs(studentsQuery);
-      this.students = studentsSnapshot.docs.map(doc => doc.data() as Student);
-      saveToStorageLocalOnly('students', this.students);
 
       this.isReady = true;
       this.notifyListeners();

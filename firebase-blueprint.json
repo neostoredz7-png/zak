@@ -1,58 +1,34 @@
 {
   "entities": {
-    "Profile": {
-      "title": "Profile",
-      "description": "User profile information",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "email": { "type": "string", "format": "email" },
-        "school": { "type": "string" }
-      },
-      "required": ["id", "email"]
-    },
-    "SchoolClass": {
-      "title": "SchoolClass",
-      "description": "School class information",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "grade_level": { "type": "string" },
-        "is_assigned": { "type": "boolean" },
-        "student_count": { "type": "number" },
-        "user_id": { "type": "string" }
-      },
-      "required": ["id", "name", "user_id"]
-    },
-    "Student": {
-      "title": "Student",
-      "description": "Student information",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "class_id": { "type": "string" },
-        "first_name": { "type": "string" },
-        "last_name": { "type": "string" },
-        "gender": { "type": "string" },
-        "user_id": { "type": "string" }
-      },
-      "required": ["id", "class_id", "first_name", "last_name", "user_id"]
-    }
+    "Profile": { "title": "Profile", "type": "object", "properties": { "id": { "type": "string" }, "email": { "type": "string" } }, "required": ["id", "email"] },
+    "SchoolClass": { "title": "SchoolClass", "type": "object", "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "user_id": { "type": "string" } }, "required": ["id", "name", "user_id"] },
+    "Student": { "title": "Student", "type": "object", "properties": { "id": { "type": "string" }, "class_id": { "type": "string" }, "user_id": { "type": "string" } }, "required": ["id", "class_id", "user_id"] },
+    "Assessment": { "title": "Assessment", "type": "object", "properties": { "id": { "type": "string" }, "class_id": { "type": "string" }, "user_id": { "type": "string" } }, "required": ["id", "class_id", "user_id"] },
+    "Mark": { "title": "Mark", "type": "object", "properties": { "id": { "type": "string" }, "assessment_id": { "type": "string" }, "student_id": { "type": "string" }, "user_id": { "type": "string" } }, "required": ["id", "assessment_id", "student_id", "user_id"] },
+    "AttendanceSession": { "title": "AttendanceSession", "type": "object", "properties": { "id": { "type": "string" }, "class_id": { "type": "string" }, "user_id": { "type": "string" } }, "required": ["id", "class_id", "user_id"] },
+    "AttendanceRecord": { "title": "AttendanceRecord", "type": "object", "properties": { "id": { "type": "string" }, "session_id": { "type": "string" }, "student_id": { "type": "string" }, "user_id": { "type": "string" } }, "required": ["id", "session_id", "student_id", "user_id"] },
+    "Lesson": { "title": "Lesson", "type": "object", "properties": { "id": { "type": "string" }, "user_id": { "type": "string" } }, "required": ["id", "user_id"] },
+    "TeachingUnit": { "title": "TeachingUnit", "type": "object", "properties": { "id": { "type": "string" }, "user_id": { "type": "string" } }, "required": ["id", "user_id"] },
+    "PhysicalTest": { "title": "PhysicalTest", "type": "object", "properties": { "id": { "type": "string" }, "user_id": { "type": "string" } }, "required": ["id", "user_id"] },
+    "PhysicalTestResult": { "title": "PhysicalTestResult", "type": "object", "properties": { "id": { "type": "string" }, "test_id": { "type": "string" }, "user_id": { "type": "string" } }, "required": ["id", "test_id", "user_id"] },
+    "SportsEquipment": { "title": "SportsEquipment", "type": "object", "properties": { "id": { "type": "string" }, "user_id": { "type": "string" } }, "required": ["id", "user_id"] },
+    "StudentInjury": { "title": "StudentInjury", "type": "object", "properties": { "id": { "type": "string" }, "user_id": { "type": "string" } }, "required": ["id", "user_id"] },
+    "LegalRegulation": { "title": "LegalRegulation", "type": "object", "properties": { "id": { "type": "string" }, "user_id": { "type": "string" } }, "required": ["id", "user_id"] }
   },
   "firestore": {
-    "/profiles/{userId}": {
-      "schema": { "$ref": "#/entities/Profile" },
-      "description": "User profiles"
-    },
-    "/classes/{classId}": {
-      "schema": { "$ref": "#/entities/SchoolClass" },
-      "description": "School classes"
-    },
-    "/students/{studentId}": {
-      "schema": { "$ref": "#/entities/Student" },
-      "description": "Students"
-    }
+    "/profiles/{userId}": { "schema": { "$ref": "#/entities/Profile" }, "description": "User profiles" },
+    "/classes/{classId}": { "schema": { "$ref": "#/entities/SchoolClass" }, "description": "School classes" },
+    "/students/{studentId}": { "schema": { "$ref": "#/entities/Student" }, "description": "Students" },
+    "/assessments/{assessmentId}": { "schema": { "$ref": "#/entities/Assessment" }, "description": "Assessments" },
+    "/marks/{markId}": { "schema": { "$ref": "#/entities/Mark" }, "description": "Marks" },
+    "/attendance_sessions/{sessionId}": { "schema": { "$ref": "#/entities/AttendanceSession" }, "description": "Attendance Sessions" },
+    "/attendance_records/{recordId}": { "schema": { "$ref": "#/entities/AttendanceRecord" }, "description": "Attendance Records" },
+    "/lessons/{lessonId}": { "schema": { "$ref": "#/entities/Lesson" }, "description": "Lessons" },
+    "/teaching_units/{unitId}": { "schema": { "$ref": "#/entities/TeachingUnit" }, "description": "Teaching Units" },
+    "/physical_tests/{testId}": { "schema": { "$ref": "#/entities/PhysicalTest" }, "description": "Physical Tests" },
+    "/test_results/{resultId}": { "schema": { "$ref": "#/entities/PhysicalTestResult" }, "description": "Test Results" },
+    "/equipment/{equipmentId}": { "schema": { "$ref": "#/entities/SportsEquipment" }, "description": "Sports Equipment" },
+    "/injuries/{injuryId}": { "schema": { "$ref": "#/entities/StudentInjury" }, "description": "Injuries" },
+    "/regulations/{regulationId}": { "schema": { "$ref": "#/entities/LegalRegulation" }, "description": "Regulations" }
   }
 }
