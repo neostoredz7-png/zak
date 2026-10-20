@@ -66,12 +66,10 @@ function MainApp() {
     return (
       <LoginView
         onLoginSuccess={async () => {
-          await dataRepository.syncOnlineDatabase();
           setShowLoginPage(false);
           refreshData();
         }}
         onContinueAsGuest={async () => {
-          await dataRepository.syncOnlineDatabase();
           setShowLoginPage(false);
           refreshData();
         }}
