@@ -762,8 +762,15 @@ class DataRepository {
       }
     }
     
-    // Note: Other collections (students, marks, etc.) are currently stored locally.
-    // To enable full multi-device sync, these should also be migrated to Firestore collections.
+    // Clear synced collections from Firestore
+    if (userId) {
+      for (const s of this.students) { try { await deleteDoc(doc(db, 'students', s.id)); } catch (e) { console.error(e); } }
+      for (const a of this.assessments) { try { await deleteDoc(doc(db, 'assessments', a.id)); } catch (e) { console.error(e); } }
+      for (const m of this.marks) { try { await deleteDoc(doc(db, 'marks', m.id)); } catch (e) { console.error(e); } }
+      for (const s of this.attendanceSessions) { try { await deleteDoc(doc(db, 'attendance_sessions', s.id)); } catch (e) { console.error(e); } }
+      for (const r of this.attendanceRecords) { try { await deleteDoc(doc(db, 'attendance_records', r.id)); } catch (e) { console.error(e); } }
+      for (const t of this.testResults) { try { await deleteDoc(doc(db, 'test_results', t.id)); } catch (e) { console.error(e); } }
+    }
     
     this.students = [];
     this.assessments = [];
