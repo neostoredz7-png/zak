@@ -105,6 +105,12 @@ class DataRepository {
       const classesSnapshot = await getDocs(classesQuery);
       this.classes = classesSnapshot.docs.map(doc => doc.data() as SchoolClass);
       saveToStorageLocalOnly('classes', this.classes);
+      
+      const studentsQuery = query(collection(db, 'students'), where('user_id', '==', auth.currentUser.uid));
+      const studentsSnapshot = await getDocs(studentsQuery);
+      this.students = studentsSnapshot.docs.map(doc => doc.data() as Student);
+      saveToStorageLocalOnly('students', this.students);
+
       this.isReady = true;
       this.notifyListeners();
     } catch (e) {
@@ -235,6 +241,13 @@ class DataRepository {
     const count = this.students.filter((s) => s.class_id === studentData.class_id).length;
     await this.updateClass(studentData.class_id, { student_count: count });
     saveToStorageLocalOnly('students', this.students);
+    
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'students', created.id), created);
+      } catch (e) { console.error(e); }
+    }
+    
     this.notifyListeners();
     return created;
   }
@@ -252,6 +265,15 @@ class DataRepository {
       await this.updateClass(cId, { student_count: count });
     }
     saveToStorageLocalOnly('students', this.students);
+    
+    if (auth.currentUser) {
+      try {
+        for (const s of createdList) {
+          await setDoc(doc(db, 'students', s.id), s);
+        }
+      } catch (e) { console.error(e); }
+    }
+    
     this.notifyListeners();
     return createdList;
   }
@@ -259,6 +281,13 @@ class DataRepository {
   async updateStudent(studentId: string, updates: Partial<Student>): Promise<Student> {
     this.students = this.students.map((s) => (s.id === studentId ? { ...s, ...updates } : s));
     saveToStorageLocalOnly('students', this.students);
+    
+    if (auth.currentUser) {
+      try {
+        await updateDoc(doc(db, 'students', studentId), updates);
+      } catch (e) { console.error(e); }
+    }
+    
     this.notifyListeners();
     return this.students.find((s) => s.id === studentId)!;
   }
@@ -274,6 +303,13 @@ class DataRepository {
     saveToStorageLocalOnly('students', this.students);
     saveToStorageLocalOnly('marks', this.marks);
     saveToStorageLocalOnly('attendance_records', this.attendanceRecords);
+    
+    if (auth.currentUser) {
+      try {
+        await deleteDoc(doc(db, 'students', studentId));
+      } catch (e) { console.error(e); }
+    }
+    
     this.notifyListeners();
     return true;
   }
@@ -594,11 +630,28 @@ class DataRepository {
   }
 
   async clearSchoolYearData(clearClasses: boolean = true): Promise<void> {
+    const userId = auth.currentUser?.uid;
+    
     if (clearClasses) {
+      // Delete classes from Firestore
+      if (userId) {
+        for (const cls of this.classes) {
+          try { await deleteDoc(doc(db, 'classes', cls.id)); } catch (e) { console.error(e); }
+        }
+      }
       this.classes = [];
     } else {
       this.classes = this.classes.map((c) => ({ ...c, student_count: 0 }));
+      if (userId) {
+        for (const cls of this.classes) {
+          try { await updateDoc(doc(db, 'classes', cls.id), { student_count: 0 }); } catch (e) { console.error(e); }
+        }
+      }
     }
+    
+    // Note: Other collections (students, marks, etc.) are currently stored locally.
+    // To enable full multi-device sync, these should also be migrated to Firestore collections.
+    
     this.students = [];
     this.assessments = [];
     this.marks = [];

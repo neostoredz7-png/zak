@@ -23,5 +23,12 @@ service cloud.firestore {
       allow get, update, delete: if isSignedIn() && resource.data.user_id == request.auth.uid;
       allow create: if isSignedIn() && request.resource.data.user_id == request.auth.uid;
     }
+
+    // Students collection
+    match /students/{studentId} {
+      allow list: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow get, update, delete: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.user_id == request.auth.uid;
+    }
   }
 }

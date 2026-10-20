@@ -25,6 +25,20 @@
         "user_id": { "type": "string" }
       },
       "required": ["id", "name", "user_id"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Student information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "class_id": { "type": "string" },
+        "first_name": { "type": "string" },
+        "last_name": { "type": "string" },
+        "gender": { "type": "string" },
+        "user_id": { "type": "string" }
+      },
+      "required": ["id", "class_id", "first_name", "last_name", "user_id"]
     }
   },
   "firestore": {
@@ -35,6 +49,10 @@
     "/classes/{classId}": {
       "schema": { "$ref": "#/entities/SchoolClass" },
       "description": "School classes"
+    },
+    "/students/{studentId}": {
+      "schema": { "$ref": "#/entities/Student" },
+      "description": "Students"
     }
   }
 }
