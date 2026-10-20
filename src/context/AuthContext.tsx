@@ -31,26 +31,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
 
   useEffect(() => {
-    // Check initial auth state
-    const isExplicitlyLoggedOut = localStorage.getItem('eps_dz_logged_out') === 'true';
-    const savedUserJson = localStorage.getItem('eps_dz_current_user');
-    const supabase = getSupabase();
-    setIsSupabaseConnected(Boolean(supabase));
-
-    if (isExplicitlyLoggedOut) {
-      setUser(null);
-    } else if (savedUserJson) {
+    async function initAuth() {
+      // 1. Sync full online database from server first
       try {
-        const parsed = JSON.parse(savedUserJson);
-        setUser(parsed);
-      } catch {
-        setUser(null);
+        await dataRepository.syncOnlineDatabase();
+      } catch (e) {
+        console.warn('Initial online sync warning:', e);
       }
-    } else {
-      // Show login page so teacher enters credentials or chooses quick demo
-      setUser(null);
+
+      const isExplicitlyLoggedOut = localStorage.getItem('eps_dz_logged_out') === 'true';
+      const savedUserJson = localStorage.getItem('eps_dz_current_user');
+      const supabase = getSupabase();
+      setIsSupabaseConnected(Boolean(supabase));
+
+      if (isExplicitlyLoggedOut) {
+        setUser(null);
+      } else if (savedUserJson) {
+        try {
+          const parsed = JSON.parse(savedUserJson);
+          setUser(parsed);
+        } catch {
+          setUser(null);
+        }
+      } else {
+        // Automatically check if server already has a registered teacher profile
+        try {
+          const res = await fetch('/api/auth/teacher-info');
+          if (res.ok) {
+            const info = await res.json();
+            if (info.hasAccount) {
+              const prof = dataRepository.getProfile();
+              if (prof && prof.email) {
+                setUser(prof);
+                localStorage.setItem('eps_dz_current_user', JSON.stringify(prof));
+              }
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+      setIsLoading(false);
     }
-    setIsLoading(false);
+
+    initAuth();
   }, []);
 
   const login = async (email: string, password?: string): Promise<{ success: boolean; error?: string }> => {
@@ -67,11 +91,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const json = await res.json();
         if (json.success && json.user) {
           const prof = json.user;
+          // Ensure all classes, students, and pedagogical records are synced
+          await dataRepository.syncOnlineDatabase();
           setUser(prof);
           localStorage.removeItem('eps_dz_logged_out');
           localStorage.setItem('eps_dz_current_user', JSON.stringify(prof));
           setIsLoading(false);
           return { success: true };
+        } else if (json.error) {
+          setIsLoading(false);
+          return { success: false, error: json.error };
         }
       }
     } catch {

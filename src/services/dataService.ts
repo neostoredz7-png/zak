@@ -46,12 +46,16 @@ function loadFromStorage<T>(key: string, defaultValue: T): T {
   }
 }
 
-function saveToStorage<T>(key: string, value: T): void {
+function saveToStorageLocalOnly<T>(key: string, value: T): void {
   try {
     localStorage.setItem(LS_PREFIX + key, JSON.stringify(value));
   } catch (err) {
     console.error(`Error saving ${key} to localStorage:`, err);
   }
+}
+
+function saveToStorage<T>(key: string, value: T): void {
+  saveToStorageLocalOnly(key, value);
 
   // Persist directly to online server database
   try {
@@ -64,6 +68,10 @@ function saveToStorage<T>(key: string, value: T): void {
     });
   } catch (e) {
     // ignore
+  }
+
+  if (typeof dataRepository !== 'undefined' && dataRepository) {
+    dataRepository.notifyListeners();
   }
 }
 
@@ -83,40 +91,14 @@ class DataRepository {
   private injuries: StudentInjury[];
   private regulations: LegalRegulation[];
 
+  private listeners: Set<() => void> = new Set();
+  public isReady: boolean = false;
+  private initPromise: Promise<boolean>;
+
   constructor() {
     this.profile = loadFromStorage('profile', initialProfile);
-    const rawClasses = loadFromStorage('classes', initialClasses);
-    // Ensure every class has a guaranteed unique ID and no duplicates exist
-    const seenClassIds = new Set<string>();
-    const sanitizedClasses: SchoolClass[] = [];
-    for (const c of rawClasses) {
-      let uniqueId = c.id;
-      if (!uniqueId || seenClassIds.has(uniqueId)) {
-        uniqueId = 'cls-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 7);
-      }
-      seenClassIds.add(uniqueId);
-      sanitizedClasses.push({
-        ...c,
-        id: uniqueId,
-        is_assigned: Boolean(c.is_assigned === true || (c.is_assigned as any) === 'true'),
-      });
-    }
-    this.classes = sanitizedClasses;
-    saveToStorage('classes', this.classes);
-
-    const rawStudents = loadFromStorage('students', initialStudents);
-    const seenStudentIds = new Set<string>();
-    const sanitizedStudents: Student[] = [];
-    for (const s of rawStudents) {
-      let uniqueId = s.id;
-      if (!uniqueId || seenStudentIds.has(uniqueId)) {
-        uniqueId = 'std-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 7);
-      }
-      seenStudentIds.add(uniqueId);
-      sanitizedStudents.push({ ...s, id: uniqueId });
-    }
-    this.students = sanitizedStudents;
-    saveToStorage('students', this.students);
+    this.classes = loadFromStorage('classes', initialClasses);
+    this.students = loadFromStorage('students', initialStudents);
     this.assessments = loadFromStorage('assessments', initialAssessments);
     this.marks = loadFromStorage('marks', initialMarks);
     this.attendanceSessions = loadFromStorage('attendance_sessions', initialAttendanceSessions);
@@ -128,7 +110,28 @@ class DataRepository {
     this.equipment = loadFromStorage('equipment', initialEquipment);
     this.injuries = loadFromStorage('injuries', initialInjuries);
     this.regulations = loadFromStorage('regulations', initialLegalRegulations);
-    this.syncOnlineDatabase();
+
+    // Initial sync with central online database
+    this.initPromise = this.syncOnlineDatabase();
+  }
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  notifyListeners(): void {
+    this.listeners.forEach((fn) => {
+      try {
+        fn();
+      } catch (e) {
+        console.error(e);
+      }
+    });
+  }
+
+  async waitForInit(): Promise<boolean> {
+    return this.initPromise;
   }
 
   async syncOnlineDatabase(): Promise<boolean> {
@@ -138,29 +141,76 @@ class DataRepository {
         const json = await res.json();
         if (json.initialized && json.data) {
           const db = json.data;
-          if (db.profile) this.profile = db.profile;
-          if (Array.isArray(db.classes)) this.classes = db.classes;
-          if (Array.isArray(db.students)) this.students = db.students;
-          if (Array.isArray(db.assessments)) this.assessments = db.assessments;
-          if (Array.isArray(db.marks)) this.marks = db.marks;
-          if (Array.isArray(db.attendance_sessions)) this.attendanceSessions = db.attendance_sessions;
-          if (Array.isArray(db.attendance_records)) this.attendanceRecords = db.attendance_records;
-          if (Array.isArray(db.teaching_units)) this.teachingUnits = db.teaching_units;
-          if (Array.isArray(db.lessons)) this.lessons = db.lessons;
-          if (Array.isArray(db.physical_tests)) this.physicalTests = db.physical_tests;
-          if (Array.isArray(db.test_results)) this.testResults = db.test_results;
-          if (Array.isArray(db.equipment)) this.equipment = db.equipment;
-          if (Array.isArray(db.injuries)) this.injuries = db.injuries;
-          if (Array.isArray(db.regulations)) this.regulations = db.regulations;
+          if (db.profile) {
+            this.profile = db.profile;
+            saveToStorageLocalOnly('profile', this.profile);
+          }
+          if (Array.isArray(db.classes) && db.classes.length > 0) {
+            this.classes = db.classes;
+            saveToStorageLocalOnly('classes', this.classes);
+          }
+          if (Array.isArray(db.students) && db.students.length > 0) {
+            this.students = db.students;
+            saveToStorageLocalOnly('students', this.students);
+          }
+          if (Array.isArray(db.assessments)) {
+            this.assessments = db.assessments;
+            saveToStorageLocalOnly('assessments', this.assessments);
+          }
+          if (Array.isArray(db.marks)) {
+            this.marks = db.marks;
+            saveToStorageLocalOnly('marks', this.marks);
+          }
+          if (Array.isArray(db.attendance_sessions)) {
+            this.attendanceSessions = db.attendance_sessions;
+            saveToStorageLocalOnly('attendance_sessions', this.attendanceSessions);
+          }
+          if (Array.isArray(db.attendance_records)) {
+            this.attendanceRecords = db.attendance_records;
+            saveToStorageLocalOnly('attendance_records', this.attendanceRecords);
+          }
+          if (Array.isArray(db.teaching_units)) {
+            this.teachingUnits = db.teaching_units;
+            saveToStorageLocalOnly('teaching_units', this.teachingUnits);
+          }
+          if (Array.isArray(db.lessons)) {
+            this.lessons = db.lessons;
+            saveToStorageLocalOnly('lessons', this.lessons);
+          }
+          if (Array.isArray(db.physical_tests)) {
+            this.physicalTests = db.physical_tests;
+            saveToStorageLocalOnly('physical_tests', this.physicalTests);
+          }
+          if (Array.isArray(db.test_results)) {
+            this.testResults = db.test_results;
+            saveToStorageLocalOnly('test_results', this.testResults);
+          }
+          if (Array.isArray(db.equipment)) {
+            this.equipment = db.equipment;
+            saveToStorageLocalOnly('equipment', this.equipment);
+          }
+          if (Array.isArray(db.injuries)) {
+            this.injuries = db.injuries;
+            saveToStorageLocalOnly('injuries', this.injuries);
+          }
+          if (Array.isArray(db.regulations)) {
+            this.regulations = db.regulations;
+            saveToStorageLocalOnly('regulations', this.regulations);
+          }
+          this.isReady = true;
+          this.notifyListeners();
           return true;
         } else {
           await this.saveFullDatabaseOnline();
+          this.isReady = true;
+          this.notifyListeners();
           return true;
         }
       }
     } catch (err) {
-      // offline fallback
+      console.warn('Network sync with online database failed, using cached state:', err);
     }
+    this.isReady = true;
     return false;
   }
 

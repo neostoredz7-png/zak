@@ -27,22 +27,43 @@ interface LoginViewProps {
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onContinueAsGuest }) => {
-  const { login, signup, isSupabaseConnected } = useAuth();
+  const { login, signup } = useAuth();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
-  const [email, setEmail] = useState('prof.zakaria@education.dz');
-  const [password, setPassword] = useState('eps1954');
+  const [email, setEmail] = useState('zaki@gmail.com');
+  const [password, setPassword] = useState('2026');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
   // Signup fields
   const [fullName, setFullName] = useState('سعيد زكريا');
-  const [schoolName, setSchoolName] = useState('ثانوية أول نوفمبر 1954');
+  const [schoolName, setSchoolName] = useState('ثانوية أول نوفمبر 1954 - جديوية');
   const [wilaya, setWilaya] = useState('غليزان');
   const [municipality, setMunicipality] = useState('جديوية');
   const [academicYear, setAcademicYear] = useState('2026 / 2027');
 
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+
+  React.useEffect(() => {
+    // Automatically retrieve the registered teacher credentials info from the online database
+    fetch('/api/auth/teacher-info')
+      .then((res) => res.json())
+      .then((info) => {
+        if (info.email) {
+          setEmail(info.email);
+        }
+        if (info.school_name) {
+          setSchoolName(info.school_name);
+        }
+        if (info.full_name) {
+          setFullName(info.full_name);
+        }
+        if (info.wilaya) {
+          setWilaya(info.wilaya);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,16 +92,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onContinue
       } else {
         setStatusMessage({ type: 'error', text: res.error || 'حدث خطأ أثناء إنشاء الحساب' });
       }
-    }
-  };
-
-  const handleQuickDemoLogin = async () => {
-    setLoading(true);
-    setStatusMessage(null);
-    const res = await login('neostoredz7@gmail.com', 'eps1954');
-    setLoading(false);
-    if (res.success) {
-      if (onLoginSuccess) onLoginSuccess();
     }
   };
 

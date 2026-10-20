@@ -50,15 +50,30 @@ function MainApp() {
     refreshData();
   }, [activeTab]);
 
+  useEffect(() => {
+    // Listen to data repository updates across the app and network
+    const unsubscribe = dataRepository.subscribe(() => {
+      refreshData();
+    });
+
+    dataRepository.syncOnlineDatabase().then(() => {
+      refreshData();
+    });
+
+    return unsubscribe;
+  }, []);
+
   // If user is not authenticated or explicitly requests the Login Panel
   if ((!user || !isAuthenticated) || showLoginPage) {
     return (
       <LoginView
-        onLoginSuccess={() => {
+        onLoginSuccess={async () => {
+          await dataRepository.syncOnlineDatabase();
           setShowLoginPage(false);
           refreshData();
         }}
-        onContinueAsGuest={() => {
+        onContinueAsGuest={async () => {
+          await dataRepository.syncOnlineDatabase();
           setShowLoginPage(false);
           refreshData();
         }}
