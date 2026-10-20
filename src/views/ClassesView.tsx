@@ -202,49 +202,6 @@ export const ClassesView: React.FC<ClassesViewProps> = ({
           </div>
         </div>
 
-        {/* Action Buttons Toolbar */}
-        <div className="flex items-center flex-wrap gap-2">
-          {/* 1. Add Class */}
-          <button
-            type="button"
-            onClick={handleOpenAddModal}
-            className="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-3.5 py-2 rounded-xl text-xs shadow-xs transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>إضافة قسم جديد</span>
-          </button>
-
-          {/* 2. Import Excel */}
-          <button
-            type="button"
-            onClick={() => setShowImportModal(true)}
-            className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors"
-          >
-            <FileSpreadsheet className="w-4 h-4 text-emerald-700" />
-            <span>استيراد من Excel</span>
-          </button>
-
-          {/* 3. Settings / Assign more */}
-          <button
-            type="button"
-            onClick={onOpenSettings}
-            className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition-colors"
-          >
-            <Settings className="w-4 h-4 text-slate-600" />
-            <span>إعدادات المؤسسة والإسناد</span>
-          </button>
-
-          {/* 4. TOTAL CLEAR / RESET SEASON BUTTON */}
-          <button
-            type="button"
-            onClick={() => setShowClearYearModal(true)}
-            className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors shadow-xs"
-            title="حذف كلي للأقسام والتلاميذ لبدء موسم دراسي جديد"
-          >
-            <Trash2 className="w-4 h-4 text-rose-600" />
-            <span>تهيئة ومسح الموسم</span>
-          </button>
-        </div>
       </div>
 
       {/* Scope Selector Notice Banner */}

@@ -631,12 +631,28 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
           });
 
           // Special recognition for Algerian Ministry Digitization:
-          // In official digitization lists, Column E (index 4) is ALWAYS the Date of Birth (تاريخ الميلاد / تاريخ الازدياد).
-          // Column F (index 5) is مكان الازدياد, Column G (index 6) is الجنس.
-          if (colMap['birth_date'] === undefined && headerRow.length > 4) {
-            colMap['birth_date'] = 4; // Column E
+          // In official digitization lists, Column E (0-based index 4) is ALWAYS the Date of Birth (تاريخ الميلاد / تاريخ الازدياد).
+          // Column F (0-based index 5) is مكان الازدياد, Column G (0-based index 6) is الجنس.
+          if (headerRow.length > 4) {
+            const colEHeader = String(headerRow[4] || '').toLowerCase();
+            if (
+              colEHeader.includes('تاريخ') ||
+              colEHeader.includes('ازدياد') ||
+              colEHeader.includes('ميلاد') ||
+              colEHeader.includes('date') ||
+              colMap['birth_date'] === undefined
+            ) {
+              colMap['birth_date'] = 4; // Column E is strictly Date of Birth
+            }
           }
-          if (colMap['birth_place'] === undefined && headerRow.length > 5) {
+          if (colMap['birth_place'] === 4) {
+            // Column E is Date of Birth, so birth place must point to Column F (index 5)
+            if (headerRow.length > 5) {
+              colMap['birth_place'] = 5;
+            } else {
+              delete colMap['birth_place'];
+            }
+          } else if (colMap['birth_place'] === undefined && headerRow.length > 5) {
             colMap['birth_place'] = 5; // Column F
           }
           if (colMap['gender'] === undefined && headerRow.length > 6) {
@@ -830,7 +846,15 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
               }
             }
 
-            let birthPlace = colMap['birth_place'] !== undefined ? String(row[colMap['birth_place']] || '').trim() : '';
+            let birthPlaceCol = colMap['birth_place'];
+            if (birthPlaceCol === 4) {
+              birthPlaceCol = 5; // Column F
+            }
+            let birthPlace = birthPlaceCol !== undefined && birthPlaceCol !== 4
+              ? String(row[birthPlaceCol] || '').trim()
+              : (row[5] !== undefined && String(row[5]).trim() !== '' && row[5] !== rawBirthVal)
+              ? String(row[5]).trim()
+              : '';
             if (!birthPlace && extraPlaceFromDateCell) {
               birthPlace = extraPlaceFromDateCell;
             }

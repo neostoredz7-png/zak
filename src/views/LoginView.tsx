@@ -198,38 +198,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onContinue
                 </div>
               </div>
 
-              {/* Mode Switch Tabs */}
-              <div className="flex bg-slate-100 p-1 rounded-2xl mb-6 text-xs font-bold">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('login');
-                    setStatusMessage(null);
-                  }}
-                  className={`flex-1 py-2.5 rounded-xl transition-all ${
-                    mode === 'login'
-                      ? 'bg-white text-emerald-900 shadow-sm font-black'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  تسجيل الدخول
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('signup');
-                    setStatusMessage(null);
-                  }}
-                  className={`flex-1 py-2.5 rounded-xl transition-all ${
-                    mode === 'signup'
-                      ? 'bg-white text-emerald-900 shadow-sm font-black'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  إنشاء حساب جديد
-                </button>
-              </div>
-
               {/* Feedback Alert */}
               {statusMessage && (
                 <div
@@ -440,42 +408,21 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onContinue
                 )}
               </form>
 
-              {/* Quick Demo Login Option */}
-              <div className="mt-6 pt-5 border-t border-slate-100 space-y-3">
-                <div className="relative flex py-1 items-center">
-                  <div className="flex-grow border-t border-slate-200"></div>
-                  <span className="flex-shrink mx-3 text-[11px] font-bold text-slate-400">
-                    أو الدخول المباشر للتجربة السريعة
-                  </span>
-                  <div className="flex-grow border-t border-slate-200"></div>
-                </div>
-
+              {/* Subtle Account Switch Helper */}
+              <div className="mt-5 text-center">
                 <button
                   type="button"
-                  onClick={handleQuickDemoLogin}
-                  className="w-full py-2.5 px-4 rounded-xl border-2 border-emerald-600/40 bg-emerald-50/60 hover:bg-emerald-100 text-emerald-900 font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-xs group"
+                  onClick={() => {
+                    setMode(mode === 'login' ? 'signup' : 'login');
+                    setStatusMessage(null);
+                  }}
+                  className="text-xs text-emerald-800 hover:text-emerald-950 font-bold hover:underline transition-colors"
                 >
-                  <Sparkles className="w-4 h-4 text-emerald-700 group-hover:scale-110 transition-transform" />
-                  <span>دخول فوري بحساب الأستاذ التجريبي (سعيد زكريا — ثانوية أول نوفمبر 1954)</span>
+                  {mode === 'login'
+                    ? 'ليس لديك حساب بعد؟ اضغط هنا لفتح حساب أستاذ جديد'
+                    : 'لديك حساب مسجل بالفعل؟ اضغط هنا لتسجيل الدخول'}
                 </button>
               </div>
-            </div>
-
-            {/* Bottom Links & Supabase status */}
-            <div className="mt-8 pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
-              <div className="flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span>{isSupabaseConnected ? 'سحابي متصل (Supabase)' : 'وضع التخزين المحلي الآمن'}</span>
-              </div>
-              {onContinueAsGuest && (
-                <button
-                  type="button"
-                  onClick={onContinueAsGuest}
-                  className="text-slate-600 hover:text-emerald-700 font-bold hover:underline"
-                >
-                  المتابعة كزائر ←
-                </button>
-              )}
             </div>
           </div>
         </div>
