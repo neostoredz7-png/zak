@@ -32,7 +32,7 @@ import {
   initialLegalRegulations,
 } from './mockData';
 import { db, auth } from './firebaseClient';
-import { doc, getDoc, setDoc, collection, getDocs, query, where, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, query, where, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 
 const LS_PREFIX = 'eps_dz_data_';
 
@@ -72,6 +72,7 @@ class DataRepository {
   private regulations: LegalRegulation[];
 
   private listeners: Set<() => void> = new Set();
+  private unsubscribers: (() => void)[] = [];
   public isReady: boolean = false;
 
   constructor() {
@@ -95,25 +96,32 @@ class DataRepository {
 
   private async initDatabase() {
     if (!auth.currentUser) return;
+    
+    this.unsubscribers.forEach(unsub => unsub());
+    this.unsubscribers = [];
+
     try {
       const userId = auth.currentUser.uid;
+
+      const unsubProfile = onSnapshot(doc(db, 'profiles', userId), (docSnap) => {
+        if (docSnap.exists()) {
+          this.profile = docSnap.data() as Profile;
+          saveToStorageLocalOnly('profile', this.profile);
+          this.notifyListeners();
+        }
+      });
+      this.unsubscribers.push(unsubProfile);
+
       const collections = [
-        'profiles', 'classes', 'students', 'assessments', 'marks', 
+        'classes', 'students', 'assessments', 'marks', 
         'attendance_sessions', 'attendance_records', 'lessons', 
         'teaching_units', 'physical_tests', 'test_results', 
         'equipment', 'injuries', 'regulations'
       ];
 
       for (const coll of collections) {
-        if (coll === 'profiles') {
-          const profileDoc = await getDoc(doc(db, 'profiles', userId));
-          if (profileDoc.exists()) {
-            this.profile = profileDoc.data() as Profile;
-            saveToStorageLocalOnly('profile', this.profile);
-          }
-        } else {
-          const q = query(collection(db, coll), where('user_id', '==', userId));
-          const snapshot = await getDocs(q);
+        const q = query(collection(db, coll), where('user_id', '==', userId));
+        const unsub = onSnapshot(q, (snapshot) => {
           const data = snapshot.docs.map(doc => doc.data());
           
           switch (coll) {
@@ -131,7 +139,9 @@ class DataRepository {
             case 'injuries': this.injuries = data as StudentInjury[]; saveToStorageLocalOnly('injuries', this.injuries); break;
             case 'regulations': this.regulations = data as LegalRegulation[]; saveToStorageLocalOnly('regulations', this.regulations); break;
           }
-        }
+          this.notifyListeners();
+        });
+        this.unsubscribers.push(unsub);
       }
 
       this.isReady = true;
