@@ -770,6 +770,48 @@ class DataRepository {
     this.attendanceSessions = [];
     this.attendanceRecords = [];
     this.testResults = [];
+  }
+
+  getInjuries(): StudentInjury[] {
+    return [...this.injuries].sort((a, b) => new Date(b.incident_date).getTime() - new Date(a.incident_date).getTime());
+  }
+
+  async saveInjury(injuryData: Omit<StudentInjury, 'id'>): Promise<StudentInjury> {
+    const created: StudentInjury = {
+      ...injuryData,
+      id: 'inj-' + Date.now().toString(36) + Math.random().toString(36).substring(2, 5),
+    };
+    this.injuries = [created, ...this.injuries];
+    
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'injuries', created.id), created);
+      } catch (e) { console.error(e); }
+    }
+    
+    this.notifyListeners();
+    return created;
+  }
+
+  getRegulations(): LegalRegulation[] {
+    return [...this.regulations];
+  }
+
+  resetToDefaultData(): void {
+    this.profile = initialProfile;
+    this.classes = initialClasses;
+    this.students = initialStudents;
+    this.assessments = initialAssessments;
+    this.marks = initialMarks;
+    this.attendanceSessions = initialAttendanceSessions;
+    this.attendanceRecords = initialAttendanceRecords;
+    this.teachingUnits = initialTeachingUnits;
+    this.lessons = initialLessons;
+    this.physicalTests = initialPhysicalTests;
+    this.testResults = initialTestResults;
+    this.equipment = initialEquipment;
+    this.injuries = initialInjuries;
+    this.regulations = initialLegalRegulations;
 
     this.notifyListeners();
   }
