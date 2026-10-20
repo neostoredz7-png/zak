@@ -351,6 +351,13 @@ class DataRepository {
     };
     this.assessments = [...this.assessments, created];
     saveToStorageLocalOnly('assessments', this.assessments);
+    
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'assessments', created.id), created);
+      } catch (e) { console.error(e); }
+    }
+    
     this.notifyListeners();
     return created;
   }
@@ -360,6 +367,19 @@ class DataRepository {
     this.marks = this.marks.filter((m) => m.assessment_id !== assessmentId);
     saveToStorageLocalOnly('assessments', this.assessments);
     saveToStorageLocalOnly('marks', this.marks);
+    
+    if (auth.currentUser) {
+      try {
+        await deleteDoc(doc(db, 'assessments', assessmentId));
+        // Also delete associated marks
+        const q = query(collection(db, 'marks'), where('assessment_id', '==', assessmentId));
+        const snapshot = await getDocs(q);
+        for (const docSnap of snapshot.docs) {
+          await deleteDoc(docSnap.ref);
+        }
+      } catch (e) { console.error(e); }
+    }
+    
     this.notifyListeners();
     return true;
   }
@@ -429,26 +449,37 @@ class DataRepository {
       (m) => m.assessment_id === assessmentId && m.student_id === studentId
     );
 
+    let mark: Mark;
+
     if (existingIdx >= 0) {
       this.marks[existingIdx] = {
         ...this.marks[existingIdx],
         score,
         notes: notes !== undefined ? notes : this.marks[existingIdx].notes,
       };
+      mark = this.marks[existingIdx];
     } else {
-      this.marks.push({
+      mark = {
         id: 'm-' + Date.now().toString(36) + Math.random().toString(36).substring(2, 5),
         assessment_id: assessmentId,
         student_id: studentId,
         user_id: this.profile.id,
         score,
         notes,
-      });
+      };
+      this.marks.push(mark);
     }
 
     saveToStorageLocalOnly('marks', this.marks);
+    
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'marks', mark.id), mark);
+      } catch (e) { console.error(e); }
+    }
+    
     this.notifyListeners();
-    return this.marks.find((m) => m.assessment_id === assessmentId && m.student_id === studentId)!;
+    return mark;
   }
 
   getAttendanceSessions(classId: string): AttendanceSession[] {
@@ -511,6 +542,16 @@ class DataRepository {
 
     saveToStorageLocalOnly('attendance_sessions', this.attendanceSessions);
     saveToStorageLocalOnly('attendance_records', this.attendanceRecords);
+    
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'attendance_sessions', session.id), session);
+        for (const rec of sessionRecords) {
+          await setDoc(doc(db, 'attendance_records', rec.id), rec);
+        }
+      } catch (e) { console.error(e); }
+    }
+    
     this.notifyListeners();
     return { session, records: sessionRecords };
   }
@@ -538,6 +579,13 @@ class DataRepository {
     };
     this.lessons = [created, ...this.lessons];
     saveToStorageLocalOnly('lessons', this.lessons);
+    
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'lessons', created.id), created);
+      } catch (e) { console.error(e); }
+    }
+    
     this.notifyListeners();
     return created;
   }
@@ -545,6 +593,13 @@ class DataRepository {
   async deleteLesson(lessonId: string): Promise<boolean> {
     this.lessons = this.lessons.filter((l) => l.id !== lessonId);
     saveToStorageLocalOnly('lessons', this.lessons);
+    
+    if (auth.currentUser) {
+      try {
+        await deleteDoc(doc(db, 'lessons', lessonId));
+      } catch (e) { console.error(e); }
+    }
+    
     this.notifyListeners();
     return true;
   }
@@ -570,6 +625,13 @@ class DataRepository {
     };
     this.teachingUnits.push(created);
     saveToStorageLocalOnly('teaching_units', this.teachingUnits);
+    
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'teaching_units', created.id), created);
+      } catch (e) { console.error(e); }
+    }
+    
     this.notifyListeners();
     return created;
   }
@@ -601,6 +663,13 @@ class DataRepository {
         notes,
       };
       saveToStorageLocalOnly('test_results', this.testResults);
+      
+      if (auth.currentUser) {
+        try {
+          await setDoc(doc(db, 'test_results', this.testResults[existingIdx].id), this.testResults[existingIdx]);
+        } catch (e) { console.error(e); }
+      }
+      
       this.notifyListeners();
       return this.testResults[existingIdx];
     } else {
@@ -616,6 +685,13 @@ class DataRepository {
       };
       this.testResults.push(created);
       saveToStorageLocalOnly('test_results', this.testResults);
+      
+      if (auth.currentUser) {
+        try {
+          await setDoc(doc(db, 'test_results', created.id), created);
+        } catch (e) { console.error(e); }
+      }
+      
       this.notifyListeners();
       return created;
     }
@@ -641,6 +717,13 @@ class DataRepository {
     };
     this.equipment.push(created);
     saveToStorageLocalOnly('equipment', this.equipment);
+    
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'equipment', created.id), created);
+      } catch (e) { console.error(e); }
+    }
+    
     this.notifyListeners();
     return created;
   }
@@ -648,6 +731,13 @@ class DataRepository {
   async deleteEquipment(id: string): Promise<boolean> {
     this.equipment = this.equipment.filter((e) => e.id !== id);
     saveToStorageLocalOnly('equipment', this.equipment);
+    
+    if (auth.currentUser) {
+      try {
+        await deleteDoc(doc(db, 'equipment', id));
+      } catch (e) { console.error(e); }
+    }
+    
     this.notifyListeners();
     return true;
   }
@@ -703,6 +793,13 @@ class DataRepository {
     };
     this.injuries = [created, ...this.injuries];
     saveToStorageLocalOnly('injuries', this.injuries);
+    
+    if (auth.currentUser) {
+      try {
+        await setDoc(doc(db, 'injuries', created.id), created);
+      } catch (e) { console.error(e); }
+    }
+    
     this.notifyListeners();
     return created;
   }
