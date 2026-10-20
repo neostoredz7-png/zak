@@ -1,4 +1,5 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
+import type { Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -80,6 +81,28 @@ app.post('/api/data', (req: Request, res: Response) => {
   }
 
   res.status(400).json({ error: 'بيانات غير صالحة' });
+});
+
+// Get Supabase configuration
+app.get('/api/supabase-config', (_req: Request, res: Response) => {
+  const db = readDatabase() || {};
+  const url = db.supabase_url || process.env.VITE_SUPABASE_URL || '';
+  const anonKey = db.supabase_anon_key || process.env.VITE_SUPABASE_ANON_KEY || '';
+  res.json({
+    url,
+    anonKey,
+    isConfigured: Boolean(url && anonKey && url.startsWith('http')),
+  });
+});
+
+// Save Supabase configuration
+app.post('/api/supabase-config', (req: Request, res: Response) => {
+  const { url, anonKey } = req.body;
+  const db = readDatabase() || {};
+  db.supabase_url = String(url || '').trim();
+  db.supabase_anon_key = String(anonKey || '').trim();
+  writeDatabase(db);
+  res.json({ success: true, message: 'تم حفظ إعدادات Supabase في السيرفر لجميع الأجهزة' });
 });
 
 // Get active registered teacher info
