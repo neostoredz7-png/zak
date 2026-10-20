@@ -34,26 +34,8 @@ import {
 import { db, auth } from './firebaseClient';
 import { doc, getDoc, setDoc, collection, getDocs, query, where, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 
+
 const LS_PREFIX = 'eps_dz_data_';
-
-function loadFromStorage<T>(key: string, defaultValue: T): T {
-  try {
-    const raw = localStorage.getItem(LS_PREFIX + key);
-    if (!raw) return defaultValue;
-    return JSON.parse(raw);
-  } catch (err) {
-    console.error(`Error loading ${key} from localStorage:`, err);
-    return defaultValue;
-  }
-}
-
-function saveToStorageLocalOnly<T>(key: string, value: T): void {
-  try {
-    localStorage.setItem(LS_PREFIX + key, JSON.stringify(value));
-  } catch (err) {
-    console.error(`Error saving ${key} to localStorage:`, err);
-  }
-}
 
 class DataRepository {
   private profile: Profile;
@@ -76,20 +58,20 @@ class DataRepository {
   public isReady: boolean = false;
 
   constructor() {
-    this.profile = loadFromStorage('profile', initialProfile);
-    this.classes = loadFromStorage('classes', initialClasses);
-    this.students = loadFromStorage('students', initialStudents);
-    this.assessments = loadFromStorage('assessments', initialAssessments);
-    this.marks = loadFromStorage('marks', initialMarks);
-    this.attendanceSessions = loadFromStorage('attendance_sessions', initialAttendanceSessions);
-    this.attendanceRecords = loadFromStorage('attendance_records', initialAttendanceRecords);
-    this.teachingUnits = loadFromStorage('teaching_units', initialTeachingUnits);
-    this.lessons = loadFromStorage('lessons', initialLessons);
-    this.physicalTests = loadFromStorage('physical_tests', initialPhysicalTests);
-    this.testResults = loadFromStorage('test_results', initialTestResults);
-    this.equipment = loadFromStorage('equipment', initialEquipment);
-    this.injuries = loadFromStorage('injuries', initialInjuries);
-    this.regulations = loadFromStorage('regulations', initialLegalRegulations);
+    this.profile = initialProfile;
+    this.classes = initialClasses;
+    this.students = initialStudents;
+    this.assessments = initialAssessments;
+    this.marks = initialMarks;
+    this.attendanceSessions = initialAttendanceSessions;
+    this.attendanceRecords = initialAttendanceRecords;
+    this.teachingUnits = initialTeachingUnits;
+    this.lessons = initialLessons;
+    this.physicalTests = initialPhysicalTests;
+    this.testResults = initialTestResults;
+    this.equipment = initialEquipment;
+    this.injuries = initialInjuries;
+    this.regulations = initialLegalRegulations;
 
     this.initDatabase();
   }
@@ -125,19 +107,19 @@ class DataRepository {
           const data = snapshot.docs.map(doc => doc.data());
           
           switch (coll) {
-            case 'classes': this.classes = data as SchoolClass[]; saveToStorageLocalOnly('classes', this.classes); break;
-            case 'students': this.students = data as Student[]; saveToStorageLocalOnly('students', this.students); break;
-            case 'assessments': this.assessments = data as Assessment[]; saveToStorageLocalOnly('assessments', this.assessments); break;
-            case 'marks': this.marks = data as Mark[]; saveToStorageLocalOnly('marks', this.marks); break;
-            case 'attendance_sessions': this.attendanceSessions = data as AttendanceSession[]; saveToStorageLocalOnly('attendance_sessions', this.attendanceSessions); break;
-            case 'attendance_records': this.attendanceRecords = data as AttendanceRecord[]; saveToStorageLocalOnly('attendance_records', this.attendanceRecords); break;
-            case 'lessons': this.lessons = data as Lesson[]; saveToStorageLocalOnly('lessons', this.lessons); break;
-            case 'teaching_units': this.teachingUnits = data as TeachingUnit[]; saveToStorageLocalOnly('teaching_units', this.teachingUnits); break;
-            case 'physical_tests': this.physicalTests = data as PhysicalTest[]; saveToStorageLocalOnly('physical_tests', this.physicalTests); break;
-            case 'test_results': this.testResults = data as PhysicalTestResult[]; saveToStorageLocalOnly('test_results', this.testResults); break;
-            case 'equipment': this.equipment = data as SportsEquipment[]; saveToStorageLocalOnly('equipment', this.equipment); break;
-            case 'injuries': this.injuries = data as StudentInjury[]; saveToStorageLocalOnly('injuries', this.injuries); break;
-            case 'regulations': this.regulations = data as LegalRegulation[]; saveToStorageLocalOnly('regulations', this.regulations); break;
+            case 'classes': this.classes = data as SchoolClass[]; break;
+            case 'students': this.students = data as Student[]; break;
+            case 'assessments': this.assessments = data as Assessment[]; break;
+            case 'marks': this.marks = data as Mark[]; break;
+            case 'attendance_sessions': this.attendanceSessions = data as AttendanceSession[]; break;
+            case 'attendance_records': this.attendanceRecords = data as AttendanceRecord[]; break;
+            case 'lessons': this.lessons = data as Lesson[]; break;
+            case 'teaching_units': this.teachingUnits = data as TeachingUnit[]; break;
+            case 'physical_tests': this.physicalTests = data as PhysicalTest[]; break;
+            case 'test_results': this.testResults = data as PhysicalTestResult[]; break;
+            case 'equipment': this.equipment = data as SportsEquipment[]; break;
+            case 'injuries': this.injuries = data as StudentInjury[]; break;
+            case 'regulations': this.regulations = data as LegalRegulation[]; break;
           }
           this.notifyListeners();
         });
@@ -173,7 +155,7 @@ class DataRepository {
 
   async updateProfile(updates: Partial<Profile>): Promise<Profile> {
     this.profile = { ...this.profile, ...updates };
-    saveToStorageLocalOnly('profile', this.profile);
+    
 
     if (auth.currentUser) {
       try {
@@ -842,7 +824,7 @@ class DataRepository {
     this.injuries = initialInjuries;
     this.regulations = initialLegalRegulations;
 
-    saveToStorageLocalOnly('profile', this.profile);
+    
     saveToStorageLocalOnly('classes', this.classes);
     saveToStorageLocalOnly('students', this.students);
     saveToStorageLocalOnly('assessments', this.assessments);
