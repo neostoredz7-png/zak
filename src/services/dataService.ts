@@ -593,6 +593,29 @@ class DataRepository {
     return true;
   }
 
+  async clearSchoolYearData(clearClasses: boolean = true): Promise<void> {
+    if (clearClasses) {
+      this.classes = [];
+    } else {
+      this.classes = this.classes.map((c) => ({ ...c, student_count: 0 }));
+    }
+    this.students = [];
+    this.assessments = [];
+    this.marks = [];
+    this.attendanceSessions = [];
+    this.attendanceRecords = [];
+    this.testResults = [];
+
+    saveToStorageLocalOnly('classes', this.classes);
+    saveToStorageLocalOnly('students', this.students);
+    saveToStorageLocalOnly('assessments', this.assessments);
+    saveToStorageLocalOnly('marks', this.marks);
+    saveToStorageLocalOnly('attendance_sessions', this.attendanceSessions);
+    saveToStorageLocalOnly('attendance_records', this.attendanceRecords);
+    saveToStorageLocalOnly('test_results', this.testResults);
+    this.notifyListeners();
+  }
+
   getInjuries(): StudentInjury[] {
     return [...this.injuries].sort((a, b) => new Date(b.incident_date).getTime() - new Date(a.incident_date).getTime());
   }
