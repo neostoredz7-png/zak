@@ -979,19 +979,9 @@ export const SchoolSettingsView: React.FC<SchoolSettingsViewProps> = ({
                 </div>
               </div>
 
-              <span
-                className={`text-xs px-3 py-1.5 rounded-xl font-bold flex items-center gap-2 border ${
-                  isFirebaseConnected
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                    : 'bg-amber-50 text-amber-900 border-amber-300'
-                }`}
-              >
-                <span
-                  className={`w-2.5 h-2.5 rounded-full ${
-                    isFirebaseConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
-                  }`}
-                ></span>
-                <span>{isFirebaseConnected ? 'سحابي متصل بنجاح' : 'غير متصل بحساب Google'}</span>
+              <span className="text-xs px-3 py-1.5 rounded-xl font-bold flex items-center gap-2 border bg-emerald-50 text-emerald-800 border-emerald-200">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>سحابي متصل ومباشر للجميع</span>
               </span>
             </div>
 
@@ -999,36 +989,26 @@ export const SchoolSettingsView: React.FC<SchoolSettingsViewProps> = ({
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <span className="font-bold text-slate-700 block">حساب Google المرتبط بالمزامنة:</span>
-                  <span className="font-mono text-slate-900 font-bold text-sm">
-                    {firebaseUser?.email || 'لم يتم تسجيل الدخول بعد عبر Google'}
+                  <span className="font-bold text-slate-700 block">حالة الوصول إلى قاعدة البيانات السحابية:</span>
+                  <span className="text-slate-900 font-bold text-sm flex items-center gap-2">
+                    <span className="text-emerald-700">متاحة ومباشرة لكافة المستخدمين والأجهزة</span>
+                    <span className="text-[11px] text-slate-500 font-normal">(بدون اشتراط حساب Google)</span>
                   </span>
                 </div>
 
-                {!isFirebaseConnected ? (
-                  <button
-                    type="button"
-                    onClick={loginWithGoogle}
-                    className="flex items-center justify-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow-xs transition-colors cursor-pointer"
-                  >
-                    <CloudCheck className="w-4 h-4" />
-                    <span>تسجيل الدخول بحساب Google لربط السحابة</span>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleForceFirebaseUpload}
-                    disabled={isSyncingFirebase}
-                    className="flex items-center justify-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
-                  >
-                    {isSyncingFirebase ? (
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <CloudUpload className="w-4 h-4" />
-                    )}
-                    <span>{isSyncingFirebase ? 'جاري الرفع إلى Firebase...' : 'رفع ومزامنة كافة البيانات إلى Firebase الآن'}</span>
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={handleForceFirebaseUpload}
+                  disabled={isSyncingFirebase}
+                  className="flex items-center justify-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {isSyncingFirebase ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <CloudUpload className="w-4 h-4" />
+                  )}
+                  <span>{isSyncingFirebase ? 'جاري الرفع إلى Firebase...' : 'رفع ومزامنة كافة البيانات إلى Firebase الآن'}</span>
+                </button>
               </div>
 
               <div className="pt-3 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px] text-slate-600 font-medium">

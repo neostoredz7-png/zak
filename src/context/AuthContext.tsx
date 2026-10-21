@@ -187,7 +187,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         firebaseUser,
         isAuthenticated: Boolean(user),
         isLoading,
-        isFirebaseConnected: Boolean(firebaseUser),
+        isFirebaseConnected: true,
         loginWithGoogle,
         login,
         signup,

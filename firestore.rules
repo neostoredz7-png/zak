@@ -2,55 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /{document=**} {
-      allow read, write: if false;
-    }
-
-    function isSignedIn() { return request.auth != null; }
-    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
-    function isAuthorised(data) { return isSignedIn() && data.user_id == request.auth.uid; }
-
-    match /profiles/{userId} {
-      allow get, update, create: if isOwner(userId);
-    }
-
-    match /classes/{id} {
-      allow list, get, update, delete, create: if isAuthorised(resource != null ? resource.data : request.resource.data);
-    }
-    match /students/{id} {
-      allow list, get, update, delete, create: if isAuthorised(resource != null ? resource.data : request.resource.data);
-    }
-    match /assessments/{id} {
-      allow list, get, update, delete, create: if isAuthorised(resource != null ? resource.data : request.resource.data);
-    }
-    match /marks/{id} {
-      allow list, get, update, delete, create: if isAuthorised(resource != null ? resource.data : request.resource.data);
-    }
-    match /attendance_sessions/{id} {
-      allow list, get, update, delete, create: if isAuthorised(resource != null ? resource.data : request.resource.data);
-    }
-    match /attendance_records/{id} {
-      allow list, get, update, delete, create: if isAuthorised(resource != null ? resource.data : request.resource.data);
-    }
-    match /lessons/{id} {
-      allow list, get, update, delete, create: if isAuthorised(resource != null ? resource.data : request.resource.data);
-    }
-    match /teaching_units/{id} {
-      allow list, get, update, delete, create: if isAuthorised(resource != null ? resource.data : request.resource.data);
-    }
-    match /physical_tests/{id} {
-      allow list, get, update, delete, create: if isAuthorised(resource != null ? resource.data : request.resource.data);
-    }
-    match /test_results/{id} {
-      allow list, get, update, delete, create: if isAuthorised(resource != null ? resource.data : request.resource.data);
-    }
-    match /equipment/{id} {
-      allow list, get, update, delete, create: if isAuthorised(resource != null ? resource.data : request.resource.data);
-    }
-    match /injuries/{id} {
-      allow list, get, update, delete, create: if isAuthorised(resource != null ? resource.data : request.resource.data);
-    }
-    match /regulations/{id} {
-      allow list, get, update, delete, create: if isAuthorised(resource != null ? resource.data : request.resource.data);
+      allow read, write: if true;
     }
   }
 }

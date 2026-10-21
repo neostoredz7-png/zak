@@ -84,13 +84,14 @@ class DataRepository {
     this.injuries = [...initialInjuries];
     this.regulations = [...initialLegalRegulations];
 
-    // Automatically hook up to Firebase Auth state
+    // Initialize universal real-time Firestore synchronization directly for all users
+    this.initializeRealtimeSync();
+
+    // Optionally update profile details if user logs into Firebase Auth
     onAuthStateChanged(auth, async (user) => {
       if (user) {
-        await this.handleUserAuthenticated(user);
-      } else {
-        this.cleanupUnsubscribers();
-        this.isReady = true;
+        if (user.email) this.profile.email = user.email;
+        if (user.displayName) this.profile.full_name = user.displayName;
         this.notifyListeners();
       }
     });
@@ -107,34 +108,30 @@ class DataRepository {
     this.unsubscribers = [];
   }
 
-  public async handleUserAuthenticated(user: User) {
+  /**
+   * Universal real-time synchronization with Firebase Firestore.
+   * Shared database accessible to all users without requiring Google authentication.
+   */
+  public async initializeRealtimeSync() {
     this.cleanupUnsubscribers();
     this.isSyncing = true;
 
-    // Align user ID with Firebase Auth UID
-    this.profile.id = user.uid;
-    if (user.email) this.profile.email = user.email;
-    if (user.displayName) this.profile.full_name = user.displayName;
-
     try {
-      // 1. Profile real-time listener
-      const profileRef = doc(db, 'profiles', user.uid);
+      // 1. Profile listener
+      const profileRef = doc(db, 'profiles', 'active_profile');
       const unsubProfile = onSnapshot(
         profileRef,
         (snap) => {
           if (snap.exists()) {
-            this.profile = { ...this.profile, ...(snap.data() as Profile), id: user.uid };
+            this.profile = { ...this.profile, ...(snap.data() as Profile) };
             this.notifyListeners();
-          } else {
-            // First time login - seed profile to Firestore
-            setDoc(profileRef, { ...this.profile, id: user.uid }).catch(console.error);
           }
         },
-        (err) => console.warn('Profile sync listener error:', err)
+        (err) => console.warn('Profile sync listener info:', err)
       );
       this.unsubscribers.push(unsubProfile);
 
-      // 2. Real-time listeners for all collections owned by this user
+      // 2. Real-time listeners for all shared collections (open to everyone)
       const collectionsConfig: {
         name: string;
         setter: (data: any[]) => void;
@@ -155,26 +152,25 @@ class DataRepository {
       ];
 
       for (const coll of collectionsConfig) {
-        const q = query(collection(db, coll.name), where('user_id', '==', user.uid));
+        const collRef = collection(db, coll.name);
         const unsub = onSnapshot(
-          q,
+          collRef,
           (snapshot) => {
             const items = snapshot.docs.map((docSnap) => docSnap.data());
-            // If data exists in Firestore, update memory
-            if (items.length > 0 || this.isReady) {
+            // If documents exist in Firestore, populate in-memory store
+            if (items.length > 0) {
               coll.setter(items);
             }
             this.notifyListeners();
           },
-          (err) => console.warn(`Firestore sync error on ${coll.name}:`, err)
+          (err) => console.warn(`Firestore sync listener on ${coll.name}:`, err)
         );
         this.unsubscribers.push(unsub);
       }
 
-      // 3. Initial check: If Firestore has 0 classes for this user, seed the existing state so DB isn't empty!
-      const classesSnap = await getDocs(query(collection(db, 'classes'), where('user_id', '==', user.uid)));
+      // 3. Initial check: If Firestore has 0 classes, seed the initial state
+      const classesSnap = await getDocs(collection(db, 'classes'));
       if (classesSnap.empty && this.classes.length > 0) {
-        // Upload initial classes & students to Firestore
         await this.forceUploadAllToFirestore();
       }
 
@@ -182,29 +178,32 @@ class DataRepository {
       this.isSyncing = false;
       this.notifyListeners();
     } catch (e) {
-      console.error('Error during Firebase initialization:', e);
+      console.warn('Firestore initial sync notice:', e);
       this.isReady = true;
       this.isSyncing = false;
       this.notifyListeners();
     }
   }
 
+  public async handleUserAuthenticated(user: User) {
+    if (user.email) this.profile.email = user.email;
+    if (user.displayName) this.profile.full_name = user.displayName;
+    this.notifyListeners();
+  }
+
   /**
-   * Force push all current memory data directly to Firestore collections.
-   * Ensures Firebase has 100% of the teacher's data visible immediately!
+   * Force push all current data directly to Firestore collections.
+   * Open to all users without requiring Google account.
    */
   public async forceUploadAllToFirestore(): Promise<{ success: boolean; count: number; error?: string }> {
-    const currentUid = auth.currentUser?.uid || this.profile.id;
-    if (!auth.currentUser) {
-      return { success: false, count: 0, error: 'المستخدم غير مسجل الدخول بـ Firebase' };
-    }
+    const currentUid = auth.currentUser?.uid || this.profile.id || 'shared-teacher';
 
     try {
       this.isSyncing = true;
       let totalCount = 0;
 
       // 1. Profile
-      await setDoc(doc(db, 'profiles', currentUid), { ...this.profile, id: currentUid }, { merge: true });
+      await setDoc(doc(db, 'profiles', 'active_profile'), { ...this.profile, id: currentUid }, { merge: true });
       totalCount++;
 
       // 2. Classes
@@ -326,12 +325,10 @@ class DataRepository {
   async updateProfile(updates: Partial<Profile>): Promise<Profile> {
     this.profile = { ...this.profile, ...updates };
 
-    if (auth.currentUser) {
-      try {
-        await setDoc(doc(db, 'profiles', auth.currentUser.uid), this.profile, { merge: true });
-      } catch (e) {
-        console.warn('Firebase profile update warning:', e);
-      }
+    try {
+      await setDoc(doc(db, 'profiles', 'active_profile'), this.profile, { merge: true });
+    } catch (e) {
+      console.warn('Firebase profile update warning:', e);
     }
     this.notifyListeners();
     return this.profile;
@@ -354,19 +351,17 @@ class DataRepository {
     const isAssignedBool = Boolean(isAssigned === true || (isAssigned as any) === 'true');
     this.classes = this.classes.map((c) => (c.id === classId ? { ...c, is_assigned: isAssignedBool } : c));
 
-    if (auth.currentUser) {
-      try {
-        await updateDoc(doc(db, 'classes', classId), { is_assigned: isAssignedBool });
-      } catch (e) {
-        console.error('Error updating class assignment in Firebase:', e);
-      }
+    try {
+      await updateDoc(doc(db, 'classes', classId), { is_assigned: isAssignedBool });
+    } catch (e) {
+      console.error('Error updating class assignment in Firebase:', e);
     }
     this.notifyListeners();
     return this.getAllSchoolClasses();
   }
 
   async addClass(newClass: Omit<SchoolClass, 'id'>): Promise<SchoolClass> {
-    const currentUid = auth.currentUser?.uid || this.profile.id;
+    const currentUid = auth.currentUser?.uid || this.profile.id || 'shared-teacher';
     const created: SchoolClass = {
       ...newClass,
       user_id: currentUid,
@@ -374,12 +369,10 @@ class DataRepository {
     };
     this.classes = [created, ...this.classes];
 
-    if (auth.currentUser) {
-      try {
-        await setDoc(doc(db, 'classes', created.id), created);
-      } catch (e) {
-        console.error('Error saving class to Firestore:', e);
-      }
+    try {
+      await setDoc(doc(db, 'classes', created.id), created);
+    } catch (e) {
+      console.error('Error saving class to Firestore:', e);
     }
     this.notifyListeners();
     return created;
@@ -388,12 +381,10 @@ class DataRepository {
   async updateClass(classId: string, updates: Partial<SchoolClass>): Promise<SchoolClass> {
     this.classes = this.classes.map((c) => (c.id === classId ? { ...c, ...updates } : c));
 
-    if (auth.currentUser) {
-      try {
-        await updateDoc(doc(db, 'classes', classId), updates);
-      } catch (e) {
-        console.error('Error updating class in Firestore:', e);
-      }
+    try {
+      await updateDoc(doc(db, 'classes', classId), updates);
+    } catch (e) {
+      console.error('Error updating class in Firestore:', e);
     }
     this.notifyListeners();
     const updated = this.classes.find((c) => c.id === classId)!;
@@ -403,12 +394,10 @@ class DataRepository {
   async deleteClass(classId: string): Promise<boolean> {
     this.classes = this.classes.filter((c) => c.id !== classId);
 
-    if (auth.currentUser) {
-      try {
-        await deleteDoc(doc(db, 'classes', classId));
-      } catch (e) {
-        console.error('Error deleting class from Firestore:', e);
-      }
+    try {
+      await deleteDoc(doc(db, 'classes', classId));
+    } catch (e) {
+      console.error('Error deleting class from Firestore:', e);
     }
     this.notifyListeners();
     return true;
@@ -424,7 +413,7 @@ class DataRepository {
   }
 
   async addStudent(studentData: Omit<Student, 'id'>): Promise<Student> {
-    const currentUid = auth.currentUser?.uid || this.profile.id;
+    const currentUid = auth.currentUser?.uid || this.profile.id || 'shared-teacher';
     const created: Student = {
       ...studentData,
       user_id: currentUid,
@@ -434,12 +423,10 @@ class DataRepository {
     const count = this.students.filter((s) => s.class_id === studentData.class_id).length;
     await this.updateClass(studentData.class_id, { student_count: count });
 
-    if (auth.currentUser) {
-      try {
-        await setDoc(doc(db, 'students', created.id), created);
-      } catch (e) {
-        console.error('Error saving student to Firestore:', e);
-      }
+    try {
+      await setDoc(doc(db, 'students', created.id), created);
+    } catch (e) {
+      console.error('Error saving student to Firestore:', e);
     }
 
     this.notifyListeners();
@@ -448,7 +435,7 @@ class DataRepository {
 
   async bulkAddStudents(studentsData: Omit<Student, 'id'>[]): Promise<Student[]> {
     if (studentsData.length === 0) return [];
-    const currentUid = auth.currentUser?.uid || this.profile.id;
+    const currentUid = auth.currentUser?.uid || this.profile.id || 'shared-teacher';
     const createdList: Student[] = studentsData.map((s, idx) => ({
       ...s,
       user_id: currentUid,
@@ -462,14 +449,12 @@ class DataRepository {
       await this.updateClass(cId, { student_count: count });
     }
 
-    if (auth.currentUser) {
-      try {
-        for (const s of createdList) {
-          await setDoc(doc(db, 'students', s.id), s);
-        }
-      } catch (e) {
-        console.error('Error bulk-adding students to Firestore:', e);
+    try {
+      for (const s of createdList) {
+        await setDoc(doc(db, 'students', s.id), s);
       }
+    } catch (e) {
+      console.error('Error bulk-adding students to Firestore:', e);
     }
 
     this.notifyListeners();
@@ -479,12 +464,10 @@ class DataRepository {
   async updateStudent(studentId: string, updates: Partial<Student>): Promise<Student> {
     this.students = this.students.map((s) => (s.id === studentId ? { ...s, ...updates } : s));
 
-    if (auth.currentUser) {
-      try {
-        await updateDoc(doc(db, 'students', studentId), updates);
-      } catch (e) {
-        console.error('Error updating student in Firestore:', e);
-      }
+    try {
+      await updateDoc(doc(db, 'students', studentId), updates);
+    } catch (e) {
+      console.error('Error updating student in Firestore:', e);
     }
 
     this.notifyListeners();
@@ -500,12 +483,10 @@ class DataRepository {
     const count = this.students.filter((s) => s.class_id === target.class_id).length;
     await this.updateClass(target.class_id, { student_count: count });
 
-    if (auth.currentUser) {
-      try {
-        await deleteDoc(doc(db, 'students', studentId));
-      } catch (e) {
-        console.error('Error deleting student from Firestore:', e);
-      }
+    try {
+      await deleteDoc(doc(db, 'students', studentId));
+    } catch (e) {
+      console.error('Error deleting student from Firestore:', e);
     }
 
     this.notifyListeners();
@@ -520,7 +501,7 @@ class DataRepository {
   }
 
   async addAssessment(assessmentData: Omit<Assessment, 'id'>): Promise<Assessment> {
-    const currentUid = auth.currentUser?.uid || this.profile.id;
+    const currentUid = auth.currentUser?.uid || this.profile.id || 'shared-teacher';
     const created: Assessment = {
       ...assessmentData,
       user_id: currentUid,
@@ -528,12 +509,10 @@ class DataRepository {
     };
     this.assessments = [...this.assessments, created];
 
-    if (auth.currentUser) {
-      try {
-        await setDoc(doc(db, 'assessments', created.id), created);
-      } catch (e) {
-        console.error('Error adding assessment to Firestore:', e);
-      }
+    try {
+      await setDoc(doc(db, 'assessments', created.id), created);
+    } catch (e) {
+      console.error('Error adding assessment to Firestore:', e);
     }
 
     this.notifyListeners();
@@ -544,17 +523,15 @@ class DataRepository {
     this.assessments = this.assessments.filter((a) => a.id !== assessmentId);
     this.marks = this.marks.filter((m) => m.assessment_id !== assessmentId);
 
-    if (auth.currentUser) {
-      try {
-        await deleteDoc(doc(db, 'assessments', assessmentId));
-        const q = query(collection(db, 'marks'), where('assessment_id', '==', assessmentId));
-        const snapshot = await getDocs(q);
-        for (const docSnap of snapshot.docs) {
-          await deleteDoc(docSnap.ref);
-        }
-      } catch (e) {
-        console.error('Error deleting assessment from Firestore:', e);
+    try {
+      await deleteDoc(doc(db, 'assessments', assessmentId));
+      const q = query(collection(db, 'marks'), where('assessment_id', '==', assessmentId));
+      const snapshot = await getDocs(q);
+      for (const docSnap of snapshot.docs) {
+        await deleteDoc(docSnap.ref);
       }
+    } catch (e) {
+      console.error('Error deleting assessment from Firestore:', e);
     }
 
     this.notifyListeners();
@@ -647,12 +624,10 @@ class DataRepository {
       this.marks.push(mark);
     }
 
-    if (auth.currentUser) {
-      try {
-        await setDoc(doc(db, 'marks', mark.id), mark);
-      } catch (e) {
-        console.error('Error saving mark to Firestore:', e);
-      }
+    try {
+      await setDoc(doc(db, 'marks', mark.id), mark);
+    } catch (e) {
+      console.error('Error saving mark to Firestore:', e);
     }
 
     this.notifyListeners();
@@ -674,7 +649,7 @@ class DataRepository {
     sessionData: Omit<AttendanceSession, 'id'>,
     records: { student_id: string; status: AttendanceStatus; notes?: string }[]
   ): Promise<{ session: AttendanceSession; records: AttendanceRecord[] }> {
-    const currentUid = auth.currentUser?.uid || this.profile.id;
+    const currentUid = auth.currentUser?.uid || this.profile.id || 'shared-teacher';
     let session = this.attendanceSessions.find(
       (s) =>
         s.class_id === sessionData.class_id &&
@@ -720,15 +695,13 @@ class DataRepository {
       }
     });
 
-    if (auth.currentUser) {
-      try {
-        await setDoc(doc(db, 'attendance_sessions', session.id), session);
-        for (const rec of sessionRecords) {
-          await setDoc(doc(db, 'attendance_records', rec.id), rec);
-        }
-      } catch (e) {
-        console.error('Error saving attendance session to Firestore:', e);
+    try {
+      await setDoc(doc(db, 'attendance_sessions', session.id), session);
+      for (const rec of sessionRecords) {
+        await setDoc(doc(db, 'attendance_records', rec.id), rec);
       }
+    } catch (e) {
+      console.error('Error saving attendance session to Firestore:', e);
     }
 
     this.notifyListeners();
@@ -744,17 +717,15 @@ class DataRepository {
   }
 
   async saveLesson(lessonData: Omit<Lesson, 'id'>, existingId?: string): Promise<Lesson> {
-    const currentUid = auth.currentUser?.uid || this.profile.id;
+    const currentUid = auth.currentUser?.uid || this.profile.id || 'shared-teacher';
     if (existingId) {
       const idx = this.lessons.findIndex((l) => l.id === existingId);
       if (idx >= 0) {
         this.lessons[idx] = { ...this.lessons[idx], ...lessonData, user_id: currentUid };
-        if (auth.currentUser) {
-          try {
-            await setDoc(doc(db, 'lessons', existingId), this.lessons[idx]);
-          } catch (e) {
-            console.error('Error updating lesson in Firestore:', e);
-          }
+        try {
+          await setDoc(doc(db, 'lessons', existingId), this.lessons[idx]);
+        } catch (e) {
+          console.error('Error updating lesson in Firestore:', e);
         }
         this.notifyListeners();
         return this.lessons[idx];
@@ -768,12 +739,10 @@ class DataRepository {
     };
     this.lessons = [created, ...this.lessons];
 
-    if (auth.currentUser) {
-      try {
-        await setDoc(doc(db, 'lessons', created.id), created);
-      } catch (e) {
-        console.error('Error saving lesson to Firestore:', e);
-      }
+    try {
+      await setDoc(doc(db, 'lessons', created.id), created);
+    } catch (e) {
+      console.error('Error saving lesson to Firestore:', e);
     }
 
     this.notifyListeners();
@@ -783,12 +752,10 @@ class DataRepository {
   async deleteLesson(lessonId: string): Promise<boolean> {
     this.lessons = this.lessons.filter((l) => l.id !== lessonId);
 
-    if (auth.currentUser) {
-      try {
-        await deleteDoc(doc(db, 'lessons', lessonId));
-      } catch (e) {
-        console.error('Error deleting lesson from Firestore:', e);
-      }
+    try {
+      await deleteDoc(doc(db, 'lessons', lessonId));
+    } catch (e) {
+      console.error('Error deleting lesson from Firestore:', e);
     }
 
     this.notifyListeners();
@@ -802,17 +769,15 @@ class DataRepository {
   }
 
   async saveTeachingUnit(unitData: Omit<TeachingUnit, 'id'>, existingId?: string): Promise<TeachingUnit> {
-    const currentUid = auth.currentUser?.uid || this.profile.id;
+    const currentUid = auth.currentUser?.uid || this.profile.id || 'shared-teacher';
     if (existingId) {
       const idx = this.teachingUnits.findIndex((u) => u.id === existingId);
       if (idx >= 0) {
         this.teachingUnits[idx] = { ...this.teachingUnits[idx], ...unitData, user_id: currentUid };
-        if (auth.currentUser) {
-          try {
-            await setDoc(doc(db, 'teaching_units', existingId), this.teachingUnits[idx]);
-          } catch (e) {
-            console.error('Error updating teaching unit in Firestore:', e);
-          }
+        try {
+          await setDoc(doc(db, 'teaching_units', existingId), this.teachingUnits[idx]);
+        } catch (e) {
+          console.error('Error updating teaching unit in Firestore:', e);
         }
         this.notifyListeners();
         return this.teachingUnits[idx];
@@ -826,12 +791,10 @@ class DataRepository {
     };
     this.teachingUnits.push(created);
 
-    if (auth.currentUser) {
-      try {
-        await setDoc(doc(db, 'teaching_units', created.id), created);
-      } catch (e) {
-        console.error('Error saving teaching unit to Firestore:', e);
-      }
+    try {
+      await setDoc(doc(db, 'teaching_units', created.id), created);
+    } catch (e) {
+      console.error('Error saving teaching unit to Firestore:', e);
     }
 
     this.notifyListeners();
@@ -855,7 +818,7 @@ class DataRepository {
     grade?: number,
     notes?: string
   ): Promise<PhysicalTestResult> {
-    const currentUid = auth.currentUser?.uid || this.profile.id;
+    const currentUid = auth.currentUser?.uid || this.profile.id || 'shared-teacher';
     const existingIdx = this.testResults.findIndex(
       (r) => r.test_id === testId && r.student_id === studentId
     );
@@ -869,12 +832,10 @@ class DataRepository {
         notes,
       };
 
-      if (auth.currentUser) {
-        try {
-          await setDoc(doc(db, 'test_results', this.testResults[existingIdx].id), this.testResults[existingIdx]);
-        } catch (e) {
-          console.error('Error updating test result in Firestore:', e);
-        }
+      try {
+        await setDoc(doc(db, 'test_results', this.testResults[existingIdx].id), this.testResults[existingIdx]);
+      } catch (e) {
+        console.error('Error updating test result in Firestore:', e);
       }
 
       this.notifyListeners();
@@ -892,12 +853,10 @@ class DataRepository {
       };
       this.testResults.push(created);
 
-      if (auth.currentUser) {
-        try {
-          await setDoc(doc(db, 'test_results', created.id), created);
-        } catch (e) {
-          console.error('Error creating test result in Firestore:', e);
-        }
+      try {
+        await setDoc(doc(db, 'test_results', created.id), created);
+      } catch (e) {
+        console.error('Error creating test result in Firestore:', e);
       }
 
       this.notifyListeners();
@@ -911,17 +870,15 @@ class DataRepository {
   }
 
   async saveEquipment(itemData: Omit<SportsEquipment, 'id'>, existingId?: string): Promise<SportsEquipment> {
-    const currentUid = auth.currentUser?.uid || this.profile.id;
+    const currentUid = auth.currentUser?.uid || this.profile.id || 'shared-teacher';
     if (existingId) {
       const idx = this.equipment.findIndex((e) => e.id === existingId);
       if (idx >= 0) {
         this.equipment[idx] = { ...this.equipment[idx], ...itemData, user_id: currentUid };
-        if (auth.currentUser) {
-          try {
-            await setDoc(doc(db, 'equipment', existingId), this.equipment[idx]);
-          } catch (e) {
-            console.error('Error updating equipment in Firestore:', e);
-          }
+        try {
+          await setDoc(doc(db, 'equipment', existingId), this.equipment[idx]);
+        } catch (e) {
+          console.error('Error updating equipment in Firestore:', e);
         }
         this.notifyListeners();
         return this.equipment[idx];
@@ -935,12 +892,10 @@ class DataRepository {
     };
     this.equipment.push(created);
 
-    if (auth.currentUser) {
-      try {
-        await setDoc(doc(db, 'equipment', created.id), created);
-      } catch (e) {
-        console.error('Error saving equipment to Firestore:', e);
-      }
+    try {
+      await setDoc(doc(db, 'equipment', created.id), created);
+    } catch (e) {
+      console.error('Error saving equipment to Firestore:', e);
     }
 
     this.notifyListeners();
@@ -950,12 +905,10 @@ class DataRepository {
   async deleteEquipment(id: string): Promise<boolean> {
     this.equipment = this.equipment.filter((e) => e.id !== id);
 
-    if (auth.currentUser) {
-      try {
-        await deleteDoc(doc(db, 'equipment', id));
-      } catch (e) {
-        console.error('Error deleting equipment from Firestore:', e);
-      }
+    try {
+      await deleteDoc(doc(db, 'equipment', id));
+    } catch (e) {
+      console.error('Error deleting equipment from Firestore:', e);
     }
 
     this.notifyListeners();
@@ -968,7 +921,7 @@ class DataRepository {
   }
 
   async saveInjury(injuryData: Omit<StudentInjury, 'id'>): Promise<StudentInjury> {
-    const currentUid = auth.currentUser?.uid || this.profile.id;
+    const currentUid = auth.currentUser?.uid || this.profile.id || 'shared-teacher';
     const created: StudentInjury = {
       ...injuryData,
       user_id: currentUid,
@@ -976,12 +929,10 @@ class DataRepository {
     };
     this.injuries = [created, ...this.injuries];
 
-    if (auth.currentUser) {
-      try {
-        await setDoc(doc(db, 'injuries', created.id), created);
-      } catch (e) {
-        console.error('Error saving injury to Firestore:', e);
-      }
+    try {
+      await setDoc(doc(db, 'injuries', created.id), created);
+    } catch (e) {
+      console.error('Error saving injury to Firestore:', e);
     }
 
     this.notifyListeners();
@@ -995,74 +946,66 @@ class DataRepository {
 
   // --- Clear Year Data ---
   async clearSchoolYearData(clearClasses: boolean = true): Promise<void> {
-    const userId = auth.currentUser?.uid;
-
     if (clearClasses) {
-      if (userId) {
-        for (const cls of this.classes) {
-          try {
-            await deleteDoc(doc(db, 'classes', cls.id));
-          } catch (e) {
-            console.error(e);
-          }
+      for (const cls of this.classes) {
+        try {
+          await deleteDoc(doc(db, 'classes', cls.id));
+        } catch (e) {
+          console.error(e);
         }
       }
       this.classes = [];
     } else {
       this.classes = this.classes.map((c) => ({ ...c, student_count: 0 }));
-      if (userId) {
-        for (const cls of this.classes) {
-          try {
-            await updateDoc(doc(db, 'classes', cls.id), { student_count: 0 });
-          } catch (e) {
-            console.error(e);
-          }
+      for (const cls of this.classes) {
+        try {
+          await updateDoc(doc(db, 'classes', cls.id), { student_count: 0 });
+        } catch (e) {
+          console.error(e);
         }
       }
     }
 
-    if (userId) {
-      for (const s of this.students) {
-        try {
-          await deleteDoc(doc(db, 'students', s.id));
-        } catch (e) {
-          console.error(e);
-        }
+    for (const s of this.students) {
+      try {
+        await deleteDoc(doc(db, 'students', s.id));
+      } catch (e) {
+        console.error(e);
       }
-      for (const a of this.assessments) {
-        try {
-          await deleteDoc(doc(db, 'assessments', a.id));
-        } catch (e) {
-          console.error(e);
-        }
+    }
+    for (const a of this.assessments) {
+      try {
+        await deleteDoc(doc(db, 'assessments', a.id));
+      } catch (e) {
+        console.error(e);
       }
-      for (const m of this.marks) {
-        try {
-          await deleteDoc(doc(db, 'marks', m.id));
-        } catch (e) {
-          console.error(e);
-        }
+    }
+    for (const m of this.marks) {
+      try {
+        await deleteDoc(doc(db, 'marks', m.id));
+      } catch (e) {
+        console.error(e);
       }
-      for (const s of this.attendanceSessions) {
-        try {
-          await deleteDoc(doc(db, 'attendance_sessions', s.id));
-        } catch (e) {
-          console.error(e);
-        }
+    }
+    for (const s of this.attendanceSessions) {
+      try {
+        await deleteDoc(doc(db, 'attendance_sessions', s.id));
+      } catch (e) {
+        console.error(e);
       }
-      for (const r of this.attendanceRecords) {
-        try {
-          await deleteDoc(doc(db, 'attendance_records', r.id));
-        } catch (e) {
-          console.error(e);
-        }
+    }
+    for (const r of this.attendanceRecords) {
+      try {
+        await deleteDoc(doc(db, 'attendance_records', r.id));
+      } catch (e) {
+        console.error(e);
       }
-      for (const t of this.testResults) {
-        try {
-          await deleteDoc(doc(db, 'test_results', t.id));
-        } catch (e) {
-          console.error(e);
-        }
+    }
+    for (const t of this.testResults) {
+      try {
+        await deleteDoc(doc(db, 'test_results', t.id));
+      } catch (e) {
+        console.error(e);
       }
     }
 
