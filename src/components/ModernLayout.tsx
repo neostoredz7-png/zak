@@ -64,22 +64,8 @@ export const ModernLayout: React.FC<ModernLayoutProps> = ({
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false);
-  const [isConnectingGoogle, setIsConnectingGoogle] = useState(false);
   const [isSyncingNow, setIsSyncingNow] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
-
-  const handleConnectGoogle = async () => {
-    setIsConnectingGoogle(true);
-    setSyncFeedback(null);
-    const res = await loginWithGoogle();
-    setIsConnectingGoogle(false);
-    if (res.success) {
-      setSyncFeedback('تم ربط حساب Google ومزامنة كافة البيانات مع Firebase بنجاح!');
-      setTimeout(() => setSyncFeedback(null), 4000);
-    } else {
-      alert(res.error || 'فشل الاتصال بـ Google');
-    }
-  };
 
   const handleSyncNow = async () => {
     setIsSyncingNow(true);
@@ -416,6 +402,17 @@ export const ModernLayout: React.FC<ModernLayoutProps> = ({
                 </button>
               )}
 
+              <button
+                type="button"
+                onClick={handleSyncNow}
+                disabled={isSyncingNow}
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 hover:border-emerald-600 bg-slate-50 hover:bg-emerald-50/60 text-slate-700 text-xs font-semibold transition-all cursor-pointer"
+                title="مزامنة البيانات فورياً مع السحابة"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-emerald-700 ${isSyncingNow ? 'animate-spin' : ''}`} />
+                <span className="hidden xl:inline text-slate-700">مزامنة</span>
+              </button>
+
               {onOpenLogin && (
                 <button
                   type="button"
@@ -434,31 +431,6 @@ export const ModernLayout: React.FC<ModernLayoutProps> = ({
               )}
             </div>
           </header>
-
-          {/* Cloud Synchronization Status Banner */}
-          <div className="bg-emerald-50 border-b border-emerald-200/80 px-4 sm:px-6 py-1.5 text-emerald-900 text-[11px] flex flex-wrap items-center justify-between gap-2 shadow-2xs">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-              <span className="font-bold">قاعدة بيانات Firebase السحابية:</span>
-              <span className="text-emerald-800 font-mono text-[10px] bg-white/80 px-2 py-0.5 rounded border border-emerald-200">
-                قاعدة مشتركة ومباشرة للجميع
-              </span>
-              <span className="text-emerald-700 font-medium hidden md:inline">
-                (المزامنة الحية نشطة دون اشتراط حساب Google)
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={handleSyncNow}
-                disabled={isSyncingNow}
-                className="text-emerald-800 hover:text-emerald-950 bg-white/80 hover:bg-white px-2.5 py-1 rounded-lg border border-emerald-200 text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
-              >
-                <RefreshCw className={`w-3 h-3 ${isSyncingNow ? 'animate-spin' : ''}`} />
-                <span>{isSyncingNow ? 'جاري المزامنة...' : 'مزامنة ورفع البيانات إلى Firebase'}</span>
-              </button>
-            </div>
-          </div>
 
           {/* Temporary sync feedback message */}
           {syncFeedback && (
