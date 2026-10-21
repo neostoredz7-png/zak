@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Award, UserCheck, ShieldCheck, Database, LogIn, LogOut } from 'lucide-react';
+import { Database, LogIn, LogOut, CloudCheck, CloudUpload, RefreshCw } from 'lucide-react';
 
 interface HeaderProps {
   onOpenSettings: () => void;
@@ -8,11 +8,31 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenAuth }) => {
-  const { user, isAuthenticated, logout, isSupabaseConnected } = useAuth();
+  const { user, logout, isFirebaseConnected, firebaseUser, loginWithGoogle, forceUploadToFirebase } = useAuth();
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
+
+  const handleSyncNow = async () => {
+    if (!isFirebaseConnected) {
+      await loginWithGoogle();
+      return;
+    }
+    setSyncing(true);
+    setSyncMsg(null);
+    const res = await forceUploadToFirebase();
+    setSyncing(false);
+    if (res.success) {
+      setSyncMsg('تم رفع ومزامنة كافة البيانات إلى Firebase بنجاح!');
+      setTimeout(() => setSyncMsg(null), 3000);
+    } else {
+      setSyncMsg(res.error || 'فشلت المزامنة');
+      setTimeout(() => setSyncMsg(null), 3500);
+    }
+  };
 
   return (
     <header className="bg-white border-b border-slate-200 no-print select-none">
-      {/* Algerian Republic Official Banner (as in image.png) */}
+      {/* Algerian Republic Official Banner */}
       <div className="bg-emerald-800 text-white py-1.5 px-4 text-xs">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 font-medium">
@@ -57,25 +77,54 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenAuth }) =>
 
           {/* Teacher Badge & Cloud Status */}
           <div className="flex items-center flex-wrap gap-2.5 sm:gap-3">
-            {/* Supabase status badge */}
-            <button
-              onClick={onOpenSettings}
-              title="إعدادات الربط السحابي مع Supabase"
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-                isSupabaseConnected
-                  ? 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
-                  : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
-              }`}
-            >
-              <Database className="w-3.5 h-3.5" />
-              <span>{isSupabaseConnected ? 'سحابي متصل' : 'تخزين محلي'}</span>
-            </button>
+            {/* Firebase Status Badge */}
+            {isFirebaseConnected ? (
+              <div className="flex items-center gap-2">
+                <div
+                  title={`قاعدة بيانات Firebase متصلة بحساب ${firebaseUser?.email || ''}`}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border bg-emerald-50 text-emerald-800 border-emerald-200"
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <Database className="w-3.5 h-3.5" />
+                  <span>Firebase سحابي</span>
+                </div>
+
+                <button
+                  onClick={handleSyncNow}
+                  disabled={syncing}
+                  title="رفع وتحديث كل البيانات في قاعدة بيانات Firebase الآن"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-emerald-600 hover:text-white text-slate-700 border border-slate-200 transition-colors shadow-xs"
+                >
+                  {syncing ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <CloudUpload className="w-3.5 h-3.5" />
+                  )}
+                  <span>{syncing ? 'جاري الرفع...' : 'مزامنة سحابية'}</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleSyncNow}
+                title="اضغط لربط حساب Google ومزامنة البيانات مع قاعدة Firebase"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 transition-colors cursor-pointer"
+              >
+                <CloudCheck className="w-3.5 h-3.5 text-amber-700" />
+                <span>ربط Firebase عبر Google</span>
+              </button>
+            )}
+
+            {syncMsg && (
+              <div className="text-[11px] font-bold px-2 py-1 rounded bg-slate-800 text-white animate-in fade-in">
+                {syncMsg}
+              </div>
+            )}
 
             {/* Teacher Info Card */}
             {user ? (
               <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-1.5">
                 <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm shrink-0">
-                  {user.full_name.charAt(0)}
+                  {user.full_name ? user.full_name.charAt(0) : 'أ'}
                 </div>
                 <div className="text-right">
                   <div className="text-xs font-bold text-slate-900 leading-tight">

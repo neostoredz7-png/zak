@@ -27,6 +27,10 @@ import {
   ChevronDown,
   Plus,
   FileSpreadsheet,
+  CloudUpload,
+  CloudCheck,
+  AlertTriangle,
+  RefreshCw,
 } from 'lucide-react';
 
 interface ModernLayoutProps {
@@ -56,10 +60,39 @@ export const ModernLayout: React.FC<ModernLayoutProps> = ({
   onOpenAddClassModal,
   children,
 }) => {
-  const { user, isAuthenticated, logout, isSupabaseConnected } = useAuth();
+  const { user, isAuthenticated, logout, isFirebaseConnected, firebaseUser, loginWithGoogle, forceUploadToFirebase } = useAuth();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false);
+  const [isConnectingGoogle, setIsConnectingGoogle] = useState(false);
+  const [isSyncingNow, setIsSyncingNow] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
+
+  const handleConnectGoogle = async () => {
+    setIsConnectingGoogle(true);
+    setSyncFeedback(null);
+    const res = await loginWithGoogle();
+    setIsConnectingGoogle(false);
+    if (res.success) {
+      setSyncFeedback('تم ربط حساب Google ومزامنة كافة البيانات مع Firebase بنجاح!');
+      setTimeout(() => setSyncFeedback(null), 4000);
+    } else {
+      alert(res.error || 'فشل الاتصال بـ Google');
+    }
+  };
+
+  const handleSyncNow = async () => {
+    setIsSyncingNow(true);
+    setSyncFeedback(null);
+    const res = await forceUploadToFirebase();
+    setIsSyncingNow(false);
+    if (res.success) {
+      setSyncFeedback(`تم رفع ومزامنة ${res.count} عنصراً مع Firebase بنجاح!`);
+      setTimeout(() => setSyncFeedback(null), 4000);
+    } else {
+      alert(res.error || 'حدث خطأ أثناء المزامنة');
+    }
+  };
 
   // Grouped Navigation Structure for maximum clarity and ease of use
   const navSections = [
@@ -258,7 +291,7 @@ export const ModernLayout: React.FC<ModernLayoutProps> = ({
                     className="text-slate-500 hover:text-emerald-700 flex items-center gap-1 font-medium"
                   >
                     <Database className="w-3 h-3 text-slate-400" />
-                    <span>{isSupabaseConnected ? 'سحابي متصل' : 'تخزين محلي'}</span>
+                    <span>{isFirebaseConnected ? 'Firebase سحابي' : 'غير متصل بالسحابة'}</span>
                   </button>
                   <button
                     type="button"
@@ -401,6 +434,57 @@ export const ModernLayout: React.FC<ModernLayoutProps> = ({
               )}
             </div>
           </header>
+
+          {/* Cloud Synchronization Status Banner */}
+          {!isFirebaseConnected ? (
+            <div className="bg-amber-500/10 border-b border-amber-500/25 px-4 sm:px-6 py-2.5 text-amber-950 text-xs flex flex-wrap items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
+                <span className="font-extrabold text-amber-900">تنبيه المزامنة السحابية (Firebase):</span>
+                <span className="text-amber-800 font-medium">
+                  أنت تعمل في الوضع المحلي. لن تظهر بيانات الأقسام والتلاميذ على أجهزتك الأخرى حتى تسجل الدخول بحساب Google.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleConnectGoogle}
+                disabled={isConnectingGoogle}
+                className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+              >
+                <CloudUpload className="w-4 h-4" />
+                <span>{isConnectingGoogle ? 'جاري الاتصال بـ Google...' : 'ربط Google ومزامنة السحابة الآن'}</span>
+              </button>
+            </div>
+          ) : (
+            <div className="bg-emerald-50 border-b border-emerald-200/80 px-4 sm:px-6 py-1.5 text-emerald-900 text-[11px] flex flex-wrap items-center justify-between gap-2 shadow-2xs">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                <span className="font-bold">قاعدة بيانات Firebase متصلة:</span>
+                <span className="text-emerald-800 font-mono text-[10px] bg-white/80 px-1.5 py-0.5 rounded border border-emerald-200">
+                  ai-studio-epsdz · {firebaseUser?.email || 'Google Account'}
+                </span>
+                <span className="text-emerald-700 font-medium hidden sm:inline">
+                  (المزامنة الحية نشطة لكل أجهزتك)
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleSyncNow}
+                disabled={isSyncingNow}
+                className="text-emerald-700 hover:text-emerald-950 font-bold hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <RefreshCw className={`w-3 h-3 ${isSyncingNow ? 'animate-spin' : ''}`} />
+                <span>{isSyncingNow ? 'جاري الرفع...' : 'رفع البيانات للسحابة الآن'}</span>
+              </button>
+            </div>
+          )}
+
+          {/* Temporary sync feedback message */}
+          {syncFeedback && (
+            <div className="bg-emerald-600 text-white text-xs font-bold px-4 py-2 text-center animate-in fade-in">
+              {syncFeedback}
+            </div>
+          )}
 
           {/* Main Body Viewport */}
           <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto mb-16 lg:mb-6">

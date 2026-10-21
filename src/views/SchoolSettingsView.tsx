@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
 import { SchoolClass, Profile } from '../types';
 import { dataRepository } from '../services/dataService';
-import { getSupabaseConfig, saveSupabaseConfig, clearSupabaseConfig } from '../services/supabaseClient';
 import { ExcelImportModal } from '../components/ExcelImportModal';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -35,6 +34,9 @@ import {
   ArrowRightLeft,
   Briefcase,
   FileBadge,
+  CloudCheck,
+  CloudUpload,
+  RefreshCw,
 } from 'lucide-react';
 
 interface SchoolSettingsViewProps {
@@ -48,7 +50,7 @@ export const SchoolSettingsView: React.FC<SchoolSettingsViewProps> = ({
   onUpdateProfile,
   onClassesUpdated,
 }) => {
-  const { user, updateCredentials, logout } = useAuth();
+  const { user, updateCredentials, logout, isFirebaseConnected, firebaseUser, loginWithGoogle, forceUploadToFirebase } = useAuth();
   const [activeTab, setActiveTab] = useState<'classes' | 'teacher_auth' | 'school_season' | 'database'>('classes');
 
   const [classes, setClasses] = useState<SchoolClass[]>(dataRepository.getAllSchoolClasses());
@@ -92,12 +94,8 @@ export const SchoolSettingsView: React.FC<SchoolSettingsViewProps> = ({
   const [showClearYearModal, setShowClearYearModal] = useState(false);
   const [clearYearMode, setClearYearMode] = useState<'all' | 'students_only' | 'reset_sample'>('all');
 
-  // Supabase connection form
-  const currentSupabase = getSupabaseConfig();
-  const [supabaseUrl, setSupabaseUrl] = useState(currentSupabase.url);
-  const [supabaseKey, setSupabaseKey] = useState(currentSupabase.anonKey);
-  const [supabaseStatus, setSupabaseStatus] = useState<string | null>(null);
-  const [copiedSql, setCopiedSql] = useState(false);
+  // Firebase sync state
+  const [isSyncingFirebase, setIsSyncingFirebase] = useState(false);
 
   // Import modal
   const [showImportModal, setShowImportModal] = useState(false);
@@ -270,16 +268,20 @@ export const SchoolSettingsView: React.FC<SchoolSettingsViewProps> = ({
     setShowClearYearModal(false);
   };
 
-  const handleSaveSupabaseConfig = () => {
-    if (!supabaseUrl.trim() || !supabaseKey.trim()) {
-      clearSupabaseConfig();
-      setSupabaseStatus('تمت استعادة نمط التخزين المحلي والاتصال بالسيرفر');
-      setTimeout(() => setSupabaseStatus(null), 3000);
+  const handleForceFirebaseUpload = async () => {
+    if (!isFirebaseConnected) {
+      showToast('يرجى تسجيل الدخول بحساب Google أولاً لربط قاعدة البيانات السحابية', 'error');
+      await loginWithGoogle();
       return;
     }
-    saveSupabaseConfig(supabaseUrl, supabaseKey);
-    setSupabaseStatus('تم حفظ إعدادات Supabase بنجاح! يتم الآن استخدام قاعدة البيانات السحابية.');
-    setTimeout(() => setSupabaseStatus(null), 4000);
+    setIsSyncingFirebase(true);
+    const res = await forceUploadToFirebase();
+    setIsSyncingFirebase(false);
+    if (res.success) {
+      showToast(`تم رفع ومزامنة ${res.count} عنصراً إلى قاعدة بيانات Firebase بنجاح! البيانات الآن متطابقة على كل الأجهزة.`);
+    } else {
+      showToast(res.error || 'فشلت المزامنة مع Firebase', 'error');
+    }
   };
 
   const handleExportClassesExcel = () => {
@@ -410,7 +412,7 @@ export const SchoolSettingsView: React.FC<SchoolSettingsViewProps> = ({
           }`}
         >
           <Database className="w-4 h-4 text-emerald-600" />
-          <span>قاعدة البيانات السحابية (Supabase)</span>
+          <span>قاعدة بيانات Firebase السحابية</span>
         </button>
       </div>
 
@@ -958,68 +960,150 @@ export const SchoolSettingsView: React.FC<SchoolSettingsViewProps> = ({
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 4: DATABASE & ONLINE PERSISTENCE (SUPABASE)                            */}
+      {/* TAB 4: DATABASE & ONLINE PERSISTENCE (FIREBASE FIRESTORE)                  */}
       {/* ========================================================================= */}
       {activeTab === 'database' && (
         <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
                   <Database className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">قاعدة البيانات السحابية الحية (Supabase)</h3>
+                  <h3 className="text-sm font-bold text-slate-900">قاعدة بيانات Firebase Firestore السحابية</h3>
                   <p className="text-xs text-slate-500">
-                    حفظ متزامن تلقائي لكل الحركات والنقاط في قاعدة بيانات أونلاين مجانية ودائمة
+                    مزامنة حية وفورية متصلة بالسحابة تضمن تطابق بيانات الأقسام والتلاميذ على كل أجهزتك
                   </p>
                 </div>
               </div>
 
-              <span className="text-[11px] px-2.5 py-1 rounded-full font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                قاعدة بيانات السيرفر نشطة
+              <span
+                className={`text-xs px-3 py-1.5 rounded-xl font-bold flex items-center gap-2 border ${
+                  isFirebaseConnected
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                    : 'bg-amber-50 text-amber-900 border-amber-300'
+                }`}
+              >
+                <span
+                  className={`w-2.5 h-2.5 rounded-full ${
+                    isFirebaseConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+                  }`}
+                ></span>
+                <span>{isFirebaseConnected ? 'سحابي متصل بنجاح' : 'غير متصل بحساب Google'}</span>
               </span>
             </div>
 
-            {supabaseStatus && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 font-bold flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>{supabaseStatus}</span>
-              </div>
-            )}
+            {/* Auth & Connection Status Card */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <span className="font-bold text-slate-700 block">حساب Google المرتبط بالمزامنة:</span>
+                  <span className="font-mono text-slate-900 font-bold text-sm">
+                    {firebaseUser?.email || 'لم يتم تسجيل الدخول بعد عبر Google'}
+                  </span>
+                </div>
 
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Supabase Project URL:</label>
-                <input
-                  type="text"
-                  value={supabaseUrl}
-                  onChange={(e) => setSupabaseUrl(e.target.value)}
-                  placeholder="https://xyzcompany.supabase.co"
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-left dir-ltr"
-                />
+                {!isFirebaseConnected ? (
+                  <button
+                    type="button"
+                    onClick={loginWithGoogle}
+                    className="flex items-center justify-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow-xs transition-colors cursor-pointer"
+                  >
+                    <CloudCheck className="w-4 h-4" />
+                    <span>تسجيل الدخول بحساب Google لربط السحابة</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleForceFirebaseUpload}
+                    disabled={isSyncingFirebase}
+                    className="flex items-center justify-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    {isSyncingFirebase ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <CloudUpload className="w-4 h-4" />
+                    )}
+                    <span>{isSyncingFirebase ? 'جاري الرفع إلى Firebase...' : 'رفع ومزامنة كافة البيانات إلى Firebase الآن'}</span>
+                  </button>
+                )}
               </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Supabase anon public key:</label>
-                <input
-                  type="password"
-                  value={supabaseKey}
-                  onChange={(e) => setSupabaseKey(e.target.value)}
-                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-left dir-ltr"
-                />
+              <div className="pt-3 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px] text-slate-600 font-medium">
+                <div>
+                  <span className="font-bold text-slate-800">معرف قاعدة البيانات (Firestore Database ID):</span>
+                  <p className="font-mono text-emerald-800 bg-white p-2 rounded-lg border border-slate-200 mt-1">
+                    ai-studio-epsdz-2ae8431a-8c0d-482f-b7f8-16818cda88fa
+                  </p>
+                </div>
+                <div>
+                  <span className="font-bold text-slate-800">معرف المشروع السحابي (Project ID):</span>
+                  <p className="font-mono text-emerald-800 bg-white p-2 rounded-lg border border-slate-200 mt-1">
+                    gen-lang-client-0986403138
+                  </p>
+                </div>
               </div>
 
-              <div className="pt-2 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleSaveSupabaseConfig}
-                  className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow-xs transition-colors"
+              {/* Console Tip & Direct Link */}
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl space-y-2 text-xs">
+                <div className="flex items-center gap-2 font-bold text-blue-900">
+                  <CheckCircle2 className="w-4 h-4 text-blue-700 shrink-0" />
+                  <span>تنبيه هام عند البحث عن البيانات في Firebase Console:</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-blue-950 font-medium">
+                  مشروعك يستخدم قاعدة بيانات مخصصة باسم <code className="bg-white px-1.5 py-0.5 rounded border border-blue-200 font-mono text-emerald-800 font-bold">ai-studio-epsdz-2ae8431a-8c0d-482f-b7f8-16818cda88fa</code>. عند فتح لوحة تحكم Firebase، القائمة المنسدلة في الأعلى تكون افتراضياً على <code className="bg-white px-1 py-0.5 rounded border border-blue-200 font-mono">(default)</code> وهي فارغة! يجب عليك اختيار قاعدة البيانات <strong>ai-studio-epsdz...</strong> من القائمة المنسدلة لتظهر لك كافة المجموعات (classes, students, marks).
+                </p>
+                <a
+                  href="https://console.firebase.google.com/project/gen-lang-client-0986403138/firestore/databases/ai-studio-epsdz-2ae8431a-8c0d-482f-b7f8-16818cda88fa/data"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-blue-700 hover:text-blue-900 font-bold underline text-xs pt-1"
                 >
-                  حفظ وتفعيل الاتصال بـ Supabase
-                </button>
+                  <span>اضغط هنا لفتح قاعدة البيانات ai-studio-epsdz مباشرة في Firebase Console ↗</span>
+                </a>
               </div>
+            </div>
+
+            {/* Current Sync Stats */}
+            <div>
+              <h4 className="text-xs font-bold text-slate-800 mb-3">حجم البيانات الحالية الجاهزة للمزامنة السحابية:</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                <div className="p-3.5 bg-emerald-50/60 border border-emerald-200 rounded-xl">
+                  <span className="text-2xl font-black text-emerald-800">{classes.length}</span>
+                  <span className="block text-xs font-bold text-emerald-950 mt-1">أقسام تربوية</span>
+                </div>
+                <div className="p-3.5 bg-teal-50/60 border border-teal-200 rounded-xl">
+                  <span className="text-2xl font-black text-teal-800">{dataRepository.getAllStudents().length}</span>
+                  <span className="block text-xs font-bold text-teal-950 mt-1">تلاميذ مسجلين</span>
+                </div>
+                <div className="p-3.5 bg-blue-50/60 border border-blue-200 rounded-xl">
+                  <span className="text-2xl font-black text-blue-800">
+                    {classes.filter((c) => c.is_assigned).length}
+                  </span>
+                  <span className="block text-xs font-bold text-blue-950 mt-1">أقسام مسندة إليك</span>
+                </div>
+                <div className="p-3.5 bg-purple-50/60 border border-purple-200 rounded-xl">
+                  <span className="text-2xl font-black text-purple-800">
+                    {dataRepository.getLessons().length}
+                  </span>
+                  <span className="block text-xs font-bold text-purple-950 mt-1">مذكرات وحصص</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Explanatory Note */}
+            <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 text-xs text-amber-950 space-y-2">
+              <div className="flex items-center gap-2 font-bold text-amber-900">
+                <AlertCircle className="w-4 h-4 shrink-0 text-amber-700" />
+                <span>كيف تضمن ظهور نفس البيانات على جميع أجهزتك؟</span>
+              </div>
+              <p className="text-[11px] leading-relaxed text-amber-900/90">
+                1. تأكد من الضغط على زر <strong>«تسجيل الدخول عبر Google»</strong> باستخدام نفس الحساب على جهاز الحاسوب والهاتف أو التابلت.<br />
+                2. عند استيراد أي ملف Excel أو إضافة أقسام وتلاميذ، يتم رفعها وتحديثها فوراً وبشكل تلقائي في السحابة.<br />
+                3. يمكنك في أي وقت الضغط على زر <strong>«رفع ومزامنة كافة البيانات إلى Firebase الآن»</strong> لضمان أن كل البيانات المحلية رُفعت إلى السحابة فوراً.
+              </p>
             </div>
           </div>
         </div>

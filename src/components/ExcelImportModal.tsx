@@ -71,7 +71,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
   const [activePreviewClassKey, setActivePreviewClassKey] = useState<string>('ALL');
   const [editingClassNameKey, setEditingClassNameKey] = useState<string | null>(null);
   const [customNameInput, setCustomNameInput] = useState('');
-  const [successInfo, setSuccessInfo] = useState<{ studentsCount: number; classesCount: number } | null>(null);
+  const [successInfo, setSuccessInfo] = useState<{ studentsCount: number; classesCount: number; isCloudSynced?: boolean; cloudError?: string } | null>(null);
 
   if (!isOpen) return null;
 
@@ -1120,17 +1120,22 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
         totalImportedStudents += studentsForThisClass.length;
       }
 
+      // Explicitly guarantee all newly imported records are uploaded to Firestore
+      const syncRes = await dataRepository.forceUploadAllToFirestore();
+
       setIsProcessing(false);
       setSuccessInfo({
         studentsCount: totalImportedStudents,
         classesCount: selectedClasses.length,
+        isCloudSynced: syncRes.success,
+        cloudError: syncRes.error,
       });
 
       onImportComplete(totalImportedStudents, newlyCreatedClassesCount);
 
       setTimeout(() => {
         onClose();
-      }, 1500);
+      }, 2500);
     } catch (err: any) {
       setIsProcessing(false);
       alert('حدث خطأ أثناء استيراد وتوزيع الأقسام: ' + err.message);
@@ -1351,12 +1356,18 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
 
           {/* Success Banner */}
           {successInfo && (
-            <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-4 text-xs text-emerald-900 flex items-center gap-3">
-              <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
+            <div className={`border rounded-xl p-4 text-xs flex items-center gap-3 ${
+              successInfo.isCloudSynced
+                ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                : 'bg-amber-50 border-amber-300 text-amber-900'
+            }`}>
+              <CheckCircle2 className={`w-6 h-6 shrink-0 ${successInfo.isCloudSynced ? 'text-emerald-600' : 'text-amber-600'}`} />
               <div>
-                <p className="font-bold">تم الاستيراد والتوزيع بنجاح!</p>
-                <p className="text-[11px] text-emerald-700">
-                  تمت إضافة {successInfo.studentsCount} تلميذاً وتوزيعهم عبر {successInfo.classesCount} أقسام بنجاح.
+                <p className="font-bold">تم استيراد {successInfo.studentsCount} تلميذاً وتوزيعهم عبر {successInfo.classesCount} أقسام بنجاح!</p>
+                <p className={`text-[11px] mt-0.5 ${successInfo.isCloudSynced ? 'text-emerald-700' : 'text-amber-800'}`}>
+                  {successInfo.isCloudSynced
+                    ? '🚀 تم رفع وحفظ كافة الأقسام والتلاميذ مباشرة في قاعدة بيانات Firebase السحابية (ستظهر في جميع أجهزتك فوراً).'
+                    : '⚠️ تم الحفظ محلياً في هذا الجهاز. لم يتم الرفع للسحابة لأنك غير متصل بحساب Google. سجّل الدخول بحساب Google لمزامنة كل الأجهزة.'}
                 </p>
               </div>
             </div>

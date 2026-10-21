@@ -1,12 +1,16 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Profile } from '../types';
 import { dataRepository } from '../services/dataService';
-import { getSupabase } from '../services/supabaseClient';
+import { auth, GoogleAuthProvider, signInWithPopup, signOut } from '../services/firebaseClient';
+import { onAuthStateChanged, User } from 'firebase/auth';
 
 interface AuthContextType {
   user: Profile | null;
+  firebaseUser: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isFirebaseConnected: boolean;
+  loginWithGoogle: () => Promise<{ success: boolean; error?: string }>;
   login: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   signup: (
     email: string,
@@ -20,130 +24,102 @@ interface AuthContextType {
   logout: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
   updateCredentials: (updates: Partial<Profile>, newPassword?: string) => Promise<{ success: boolean; error?: string }>;
-  isSupabaseConnected: boolean;
+  forceUploadToFirebase: () => Promise<{ success: boolean; count: number; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<Profile | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
 
   useEffect(() => {
-    async function initAuth() {
-      // 1. Sync full online database from server first
-      try {
-        await dataRepository.syncOnlineDatabase();
-      } catch (e) {
-        console.warn('Initial online sync warning:', e);
-      }
-
-      const isExplicitlyLoggedOut = localStorage.getItem('eps_dz_logged_out') === 'true';
-      const savedUserJson = localStorage.getItem('eps_dz_current_user');
-      const supabase = getSupabase();
-      setIsSupabaseConnected(Boolean(supabase));
-
-      if (isExplicitlyLoggedOut) {
-        setUser(null);
-      } else if (savedUserJson) {
-        try {
-          const parsed = JSON.parse(savedUserJson);
-          setUser(parsed);
-        } catch {
-          setUser(null);
-        }
+    // 1. Listen to Firebase Auth state
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      setFirebaseUser(fbUser);
+      if (fbUser) {
+        const prof = dataRepository.getProfile();
+        prof.id = fbUser.uid;
+        if (fbUser.email) prof.email = fbUser.email;
+        if (fbUser.displayName) prof.full_name = fbUser.displayName;
+        setUser({ ...prof });
+        localStorage.removeItem('eps_dz_logged_out');
+        localStorage.setItem('eps_dz_current_user', JSON.stringify(prof));
       } else {
-        // Automatically check if server already has a registered teacher profile
-        try {
-          const res = await fetch('/api/auth/teacher-info');
-          if (res.ok) {
-            const info = await res.json();
-            if (info.hasAccount) {
-              const prof = dataRepository.getProfile();
-              if (prof && prof.email) {
-                setUser(prof);
-                localStorage.setItem('eps_dz_current_user', JSON.stringify(prof));
-              }
-            }
+        const isExplicitlyLoggedOut = localStorage.getItem('eps_dz_logged_out') === 'true';
+        const savedUserJson = localStorage.getItem('eps_dz_current_user');
+        if (isExplicitlyLoggedOut) {
+          setUser(null);
+        } else if (savedUserJson) {
+          try {
+            setUser(JSON.parse(savedUserJson));
+          } catch {
+            setUser(null);
           }
-        } catch {
-          // ignore
+        } else {
+          // Default initial profile
+          setUser(dataRepository.getProfile());
         }
       }
       setIsLoading(false);
-    }
+    });
 
-    initAuth();
+    return () => unsubscribe();
   }, []);
 
-  const login = async (email: string, password?: string): Promise<{ success: boolean; error?: string }> => {
+  const loginWithGoogle = async (): Promise<{ success: boolean; error?: string }> => {
+    setIsLoading(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      const result = await signInWithPopup(auth, provider);
+      const fbUser = result.user;
+
+      const prof = await dataRepository.updateProfile({
+        id: fbUser.uid,
+        email: fbUser.email || 'teacher@education.dz',
+        full_name: fbUser.displayName || profFallbackName(fbUser.email),
+      });
+
+      setUser(prof);
+      localStorage.removeItem('eps_dz_logged_out');
+      localStorage.setItem('eps_dz_current_user', JSON.stringify(prof));
+
+      // Trigger sync
+      await dataRepository.forceUploadAllToFirestore();
+
+      setIsLoading(false);
+      return { success: true };
+    } catch (err: any) {
+      setIsLoading(false);
+      console.error('Google Sign-In Error:', err);
+      return { success: false, error: err.message || 'فشل تسجيل الدخول باستخدام حساب Google' };
+    }
+  };
+
+  const profFallbackName = (email?: string | null) => {
+    if (!email) return 'الأستاذ';
+    return email.split('@')[0];
+  };
+
+  const login = async (email: string, _password?: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
 
-    // 1. Authenticate with Online Server Database
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && json.user) {
-          const prof = json.user;
-          // Ensure all classes, students, and pedagogical records are synced
-          await dataRepository.syncOnlineDatabase();
-          setUser(prof);
-          localStorage.removeItem('eps_dz_logged_out');
-          localStorage.setItem('eps_dz_current_user', JSON.stringify(prof));
-          setIsLoading(false);
-          return { success: true };
-        } else if (json.error) {
-          setIsLoading(false);
-          return { success: false, error: json.error };
-        }
-      }
-    } catch {
-      // fallback if offline
-    }
-
-    const supabase = getSupabase();
-    if (supabase && password) {
-      try {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) {
-          setIsLoading(false);
-          return { success: false, error: error.message };
-        }
-        if (data.user) {
-          const prof = dataRepository.getProfile();
-          prof.id = data.user.id;
-          prof.email = data.user.email || email;
-          setUser(prof);
-          localStorage.removeItem('eps_dz_logged_out');
-          localStorage.setItem('eps_dz_current_user', JSON.stringify(prof));
-          setIsLoading(false);
-          return { success: true };
-        }
-      } catch (err: any) {
-        setIsLoading(false);
-        return { success: false, error: err.message || 'فشل الاتصال بـ Supabase' };
-      }
-    }
-
-    // Local / Offline authentication fallback
+    // Update in-memory profile
     const currentProfile = dataRepository.getProfile();
     currentProfile.email = email;
-    setUser(currentProfile);
+    setUser({ ...currentProfile });
     localStorage.removeItem('eps_dz_logged_out');
     localStorage.setItem('eps_dz_current_user', JSON.stringify(currentProfile));
+
     setIsLoading(false);
     return { success: true };
   };
 
   const signup = async (
     email: string,
-    password: string,
+    _password: string,
     fullName: string,
     schoolName: string,
     wilaya: string,
@@ -152,71 +128,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
 
-    // 1. Register with Online Server Database
-    try {
-      const res = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          password,
-          fullName,
-          schoolName,
-          wilaya,
-          municipality,
-          academicYear,
-        }),
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && json.user) {
-          const newProf = json.user;
-          setUser(newProf);
-          localStorage.removeItem('eps_dz_logged_out');
-          localStorage.setItem('eps_dz_current_user', JSON.stringify(newProf));
-          setIsLoading(false);
-          return { success: true };
-        }
-      }
-    } catch {
-      // fallback
-    }
-
-    const supabase = getSupabase();
-    if (supabase) {
-      try {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { full_name: fullName, school_name: schoolName, wilaya },
-          },
-        });
-        if (error) {
-          setIsLoading(false);
-          return { success: false, error: error.message };
-        }
-        if (data.user) {
-          const newProf = await dataRepository.updateProfile({
-            id: data.user.id,
-            email,
-            full_name: fullName,
-            school_name: schoolName,
-            wilaya,
-          });
-          setUser(newProf);
-          localStorage.removeItem('eps_dz_logged_out');
-          localStorage.setItem('eps_dz_current_user', JSON.stringify(newProf));
-          setIsLoading(false);
-          return { success: true };
-        }
-      } catch (err: any) {
-        setIsLoading(false);
-        return { success: false, error: err.message || 'فشل إنشاء الحساب عبر Supabase' };
-      }
-    }
-
-    // Local account creation
     const newProf = await dataRepository.updateProfile({
       email,
       full_name: fullName,
@@ -225,6 +136,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       municipality: municipality || '',
       academic_year: academicYear || '2026 / 2027',
     });
+
     setUser(newProf);
     localStorage.removeItem('eps_dz_logged_out');
     localStorage.setItem('eps_dz_current_user', JSON.stringify(newProf));
@@ -233,11 +145,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
-    const supabase = getSupabase();
-    if (supabase) {
-      await supabase.auth.signOut();
+    try {
+      await signOut(auth);
+    } catch (e) {
+      console.warn('Sign out warning:', e);
     }
     setUser(null);
+    setFirebaseUser(null);
     localStorage.removeItem('eps_dz_current_user');
     localStorage.setItem('eps_dz_logged_out', 'true');
   };
@@ -250,52 +164,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateCredentials = async (
     updates: Partial<Profile>,
-    newPassword?: string
+    _newPassword?: string
   ): Promise<{ success: boolean; error?: string }> => {
     try {
       const updated = await dataRepository.updateProfile(updates);
       setUser(updated);
       localStorage.setItem('eps_dz_current_user', JSON.stringify(updated));
-
-      // Persist to server online database
-      await fetch('/api/auth/update-profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: updated.id,
-          email: updated.email,
-          fullName: updated.full_name,
-          matricule: updated.matricule,
-          phone: updated.phone,
-          schoolName: updated.school_name,
-          wilaya: updated.wilaya,
-          municipality: updated.municipality,
-          academicYear: updated.academic_year,
-          specialty: updated.specialty,
-          directorName: updated.director_name,
-          inspectorName: updated.inspector_name,
-          password: newPassword,
-        }),
-      });
-
       return { success: true };
     } catch (err: any) {
       return { success: false, error: err.message || 'فشل تحديث البيانات' };
     }
   };
 
+  const forceUploadToFirebase = async () => {
+    return await dataRepository.forceUploadAllToFirestore();
+  };
+
   return (
     <AuthContext.Provider
       value={{
         user,
+        firebaseUser,
         isAuthenticated: Boolean(user),
         isLoading,
+        isFirebaseConnected: Boolean(firebaseUser),
+        loginWithGoogle,
         login,
         signup,
         logout,
         updateProfile,
         updateCredentials,
-        isSupabaseConnected,
+        forceUploadToFirebase,
       }}
     >
       {children}

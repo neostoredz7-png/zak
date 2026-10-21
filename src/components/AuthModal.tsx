@@ -8,7 +8,7 @@ interface AuthModalProps {
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
-  const { login, signup, isSupabaseConnected } = useAuth();
+  const { login, signup, isFirebaseConnected, loginWithGoogle } = useAuth();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,6 +19,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [statusMessage, setStatusMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
 
   if (!isOpen) return null;
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    const res = await loginWithGoogle();
+    setLoading(false);
+    if (res.success) {
+      setStatusMessage({ type: 'success', text: 'تم تسجيل الدخول بحساب Google ومزامنة Firebase بنجاح!' });
+      setTimeout(() => onClose(), 700);
+    } else {
+      setStatusMessage({ type: 'error', text: res.error || 'فشل تسجيل الدخول عبر Google' });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +75,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               {mode === 'login' ? 'تسجيل دخول الأستاذ' : 'إنشاء حساب أستاذ جديد'}
             </h2>
             <p className="text-xs text-emerald-100">
-              {isSupabaseConnected ? 'متصل بقاعدة بيانات Supabase السحابية' : 'وضع المعاينة والعمل المحلي'}
+              {isFirebaseConnected ? 'متصل بقاعدة بيانات Firebase Firestore السحابية' : 'مزامنة سحابية نشطة عبر Google'}
             </p>
           </div>
           <button
